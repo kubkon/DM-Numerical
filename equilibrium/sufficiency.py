@@ -93,7 +93,7 @@ except KeyError:
 # Verify sufficiency
 cdfs = [fts.partial(F, bounds) for bounds in zip(lower_extremities, upper_extremities)]
 try:
-  step = len(bids) // 50
+  step = len(bids) // 35
   s_costs, s_bids = verify_sufficiency(costs, bids, b_upper, cdfs, step=step)
 except NameError:
   # Define inverse bid function
@@ -132,8 +132,6 @@ plt.xlabel(r"Cost-hat, $\hat{c}_i$")
 plt.ylabel(r"Bid-hat, $\hat{b}_i$")
 labels_1 = ['NO {}'.format(i) for i in range(1, n+1)]
 labels_2 = ['NO {}: Best response'.format(i) for i in range(1, n+1)]
-labels = []
-for l1, l2 in zip(labels_1, labels_2):
-  labels += [l1, l2]
+labels = fts.reduce(lambda acc,x: acc + [x[0], x[1]], zip(labels_1, labels_2), [])
 plt.legend(labels, loc='upper left')
 plt.savefig('sufficiency.pdf')
