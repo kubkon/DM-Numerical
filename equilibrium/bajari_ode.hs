@@ -1,6 +1,8 @@
 import Control.Applicative
 import qualified Numeric.GSL.ODE as ODE
 import qualified Numeric.Container as NC
+import qualified Data.List as DL
+import qualified Data.Maybe as DM
 import qualified Data.String.Utils as UTILS
 import qualified Bajari as B
 
@@ -14,17 +16,6 @@ extCostFunc bLow lowers =
       summ = NC.foldVector (\x acc -> acc + 1 / (bLow - x)) 0 lowers
   in bLow - (fromIntegral n - 1) / summ
 
--- K test function
-kTestFunc ::
-  Int
-  -> [(Int, Double)]
-  -> (Int, Double)
-kTestFunc n candidates =
-  let testConditions n (k, cost)
-        | k < n = and [lowers !! k, lowers !! k+1]
-      tests = map ()
-  in
-
 -- Extension function
 extensionFunc ::
   Double
@@ -35,7 +26,13 @@ extensionFunc bLow lowers =
       ks = [2..n]
       subListLowers = map (\i -> NC.subVector 0 i lowers) ks
       costs = map (extCostFunc bLow) subListLowers
-  in kTestFunc n $ zip ks costs
+      candidates = zip ks costs
+      test (k, cost)
+        | k < n = (listLowers !! (k-1) <= cost) && (cost < listLowers !! k)
+        | otherwise = listLowers !! (k-1) <= cost
+        where listLowers = NC.toList lowers
+      (result,_) = DM.fromJust $ DL.find snd $ zip candidates $ map test candidates
+  in result
 
 -- FoC vector function
 focFunc :: 
@@ -64,11 +61,10 @@ forwardShooting bUpper lowers odeSolver err ts low high = do
   let guess = 0.5 * (low + high)
   let tss = ts guess
   let step = 0.01 * (tss NC.@> 1 - tss NC.@> 0)
-  let lowersV = map (\i -> NC.subVector 0 i lowers) [2..NC.dim lowers]
-  print lowersV
-  let extCosts = map (extCostFunc guess) lowersV
-  print extCosts
-  let s = odeSolver step lowers tss
+  let (_, cost) = extensionFunc guess lowers
+  let initials = NC.mapVector (min cost) lowers
+  print initials
+  let s = odeSolver step initials tss
   if high - low < err
     then return (guess, s)
     else do
@@ -85,7 +81,7 @@ forwardShooting bUpper lowers odeSolver err ts low high = do
 -- Main
 main :: IO ()
 main = do
-  let w = 0.9
+  let w = 0.5
   let reps = [0.25, 0.5, 0.75]
   let n = length reps
   let lowers = B.lowerExt w reps
