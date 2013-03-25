@@ -6,33 +6,45 @@ import qualified Data.Maybe as DM
 import qualified Data.String.Utils as UTILS
 import qualified Bajari as B
 
--- Extension cost function
-extCostFunc ::
+-- Function for estimating c(b)
+estimateC ::
   Double -- vector of lower extremities
   -> NC.Vector Double        -- lower bound on bids
   -> Double        -- extended cost
-extCostFunc bLow lowers =
+estimateC bLow lowers =
   let n = NC.dim lowers
-      summ = NC.foldVector (\x acc -> acc + 1 / (bLow - x)) 0 lowers
-  in bLow - (fromIntegral n - 1) / summ
+      sum' = NC.foldVector (\x acc -> acc + 1 / (bLow - x)) 0 lowers
+  in bLow - (fromIntegral n - 1) / sum'
 
--- Extension function
-extensionFunc ::
+-- Function for estimating k and c(b)
+estimateKC ::
   Double
   -> NC.Vector Double
   -> (Int, Double)
-extensionFunc bLow lowers =
+estimateKC bLow lowers =
   let n = NC.dim lowers
       ks = [2..n]
       subListLowers = map (\i -> NC.subVector 0 i lowers) ks
-      costs = map (extCostFunc bLow) subListLowers
+      costs = map (estimateC bLow) subListLowers
       candidates = zip ks costs
       test (k, cost)
         | k < n = (listLowers !! (k-1) <= cost) && (cost < listLowers !! k)
         | otherwise = listLowers !! (k-1) <= cost
         where listLowers = NC.toList lowers
-      (result,_) = DM.fromJust $ DL.find snd $ zip candidates $ map test candidates
+      (result, _) = DM.fromJust $ DL.find snd $ zip candidates $ map test candidates
   in result
+
+-- Extension vector function
+extensionFunc ::
+  Int
+  -> NC.Vector Double
+  -> NC.Matrix Double
+  -> NC.Vector Double
+extensionFunc k bids odeSol =
+  let costsPerBid = NC.toRows odeSol
+      sum' b = NC.foldVector (\c acc -> acc + 1 / (b - c)) 0
+      sums = zipWith (\costs b -> b - (fromIntegral k - 1) / sum' b costs) costsPerBid $ NC.toList bids
+  in NC.fromList sums
 
 -- FoC vector function
 focFunc :: 
@@ -47,26 +59,36 @@ focFunc uppers t ys =
       constV = NC.constant (sum (NC.toList rsV) / (fromIntegral n - 1)) n
   in NC.mul probV $ NC.sub constV rsV
 
+-- Solve ODE function
+solveODE ::
+  NC.Vector Double
+  -> NC.Vector Double
+  -> NC.Vector Double
+  -> NC.Matrix Double
+solveODE lowers uppers ts =
+  let step = 0.01 * (ts NC.@> 1 - ts NC.@> 0)
+      (k, cost) = estimateKC (NC.atIndex ts 0) lowers
+      initials = NC.mapVector (min cost) lowers
+      xdot = focFunc (NC.subVector 0 k uppers)
+      ode = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot (NC.subVector 0 k initials) ts
+  in ode
+
 -- Forward shooting method
 forwardShooting ::
   Double                                              -- upper bound on bids
   -> NC.Vector Double                                 -- vector of lower extremities
-  -> (Double -> NC.Vector Double -> NC.Vector Double -> NC.Matrix Double) -- ODE solver
+  -> NC.Vector Double                                 -- vector of upper extremities
   -> Double                                           -- desired error
   -> (Double -> NC.Vector Double)                     -- grid function
   -> Double                                           -- lower bound on estimate
   -> Double                                           -- upper bound on estimate
-  -> IO (Double, NC.Matrix Double)                    -- tuple of estimate and matrix of solutions
-forwardShooting bUpper lowers odeSolver err ts low high = do
+  -> (Double, NC.Matrix Double)                       -- tuple of estimate and matrix of solutions
+forwardShooting bUpper lowers uppers err ts low high = do
   let guess = 0.5 * (low + high)
   let tss = ts guess
-  let step = 0.01 * (tss NC.@> 1 - tss NC.@> 0)
-  let (_, cost) = extensionFunc guess lowers
-  let initials = NC.mapVector (min cost) lowers
-  print initials
-  let s = odeSolver step initials tss
+  let s = solveODE lowers uppers tss
   if high - low < err
-    then return (guess, s)
+    then (guess, s)
     else do
       let bids = NC.toList $ ts guess
       let costs = map NC.toList $ NC.toColumns s
@@ -75,8 +97,8 @@ forwardShooting bUpper lowers odeSolver err ts low high = do
       let condition2 = concatMap (zipWith (>) bids) costs
       let condition3 = zipWith (<) bids $ drop 1 bids
       if and (condition1 ++ condition2 ++ condition3)
-        then forwardShooting bUpper lowers odeSolver err ts low guess
-        else forwardShooting bUpper lowers odeSolver err ts guess high
+        then forwardShooting bUpper lowers uppers err ts low guess
+        else forwardShooting bUpper lowers uppers err ts guess high
 
 -- Main
 main :: IO ()
@@ -87,13 +109,11 @@ main = do
   let lowers = B.lowerExt w reps
   let uppers = B.upperExt w reps
   let bUpper = B.upperBoundBidsFunc lowers uppers
-  let ts low = NC.linspace 10000 (low, bUpper-1E-1)
-  let xdot = focFunc (NC.fromList uppers)
-  let odeSolver step = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot
+  let ts low = NC.linspace 1000 (low, bUpper-1E-1)
   let low = lowers !! 1
   let high = bUpper
   let err = 1E-6
-  (bLow, s) <- forwardShooting bUpper (NC.fromList lowers) odeSolver err ts low high
+  let (bLow, s) = forwardShooting bUpper (NC.fromList lowers) (NC.fromList uppers) err ts low high
   let bids = NC.toList $ ts bLow
   let costs = map (show . NC.toList) $ NC.toColumns s
   let filePath = "ode.out"
