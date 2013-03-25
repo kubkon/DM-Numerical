@@ -71,7 +71,16 @@ solveODE lowers uppers ts =
       initials = NC.mapVector (min cost) lowers
       xdot = focFunc (NC.subVector 0 k uppers)
       ode = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot (NC.subVector 0 k initials) ts
-  in ode
+      ext = extensionFunc k ts ode
+      differences = NC.mapVector (\x -> abs (x - NC.atIndex lowers k)) ext
+      stopIndex = NC.minIndex differences
+      solution = map (NC.subVector 0 stopIndex) $ NC.toColumns ode ++ [ext]
+      ts' = NC.subVector stopIndex (NC.dim ts - stopIndex) ts
+      xdot' = focFunc uppers
+      initials' = NC.fromList $ map (`NC.atIndex` (stopIndex-1)) solution
+      ode' = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot' initials' ts'
+      solution' = zipWith (\x y -> NC.join [x,y]) solution $ NC.toColumns ode'
+  in NC.fromColumns solution'
 
 -- Forward shooting method
 forwardShooting ::
@@ -109,7 +118,7 @@ main = do
   let lowers = B.lowerExt w reps
   let uppers = B.upperExt w reps
   let bUpper = B.upperBoundBidsFunc lowers uppers
-  let ts low = NC.linspace 1000 (low, bUpper-1E-1)
+  let ts low = NC.linspace 10000 (low, bUpper-0.001)
   let low = lowers !! 1
   let high = bUpper
   let err = 1E-6
