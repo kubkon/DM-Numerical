@@ -65,22 +65,24 @@ solveODE ::
   -> NC.Vector Double
   -> NC.Vector Double
   -> NC.Matrix Double
-solveODE lowers uppers ts =
-  let step = 0.01 * (ts NC.@> 1 - ts NC.@> 0)
-      (k, cost) = estimateKC (NC.atIndex ts 0) lowers
-      initials = NC.mapVector (min cost) lowers
-      xdot = focFunc (NC.subVector 0 k uppers)
-      ode = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot (NC.subVector 0 k initials) ts
-      ext = extensionFunc k ts ode
-      differences = NC.mapVector (\x -> abs (x - NC.atIndex lowers k)) ext
-      stopIndex = NC.minIndex differences
-      solution = map (NC.subVector 0 stopIndex) $ NC.toColumns ode ++ [ext]
-      ts' = NC.subVector stopIndex (NC.dim ts - stopIndex) ts
-      xdot' = focFunc uppers
-      initials' = NC.fromList $ map (`NC.atIndex` (stopIndex-1)) solution
-      ode' = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot' initials' ts'
-      solution' = zipWith (\x y -> NC.join [x,y]) solution $ NC.toColumns ode'
-  in NC.fromColumns solution'
+solveODE lowers uppers ts
+  | k < n = solution'
+  | otherwise = ode
+  where n = NC.dim lowers
+        (k, cost) = estimateKC (NC.atIndex ts 0) lowers
+        initials = NC.mapVector (min cost) lowers
+        xdot = focFunc (NC.subVector 0 k uppers)
+        step = 0.01 * (ts NC.@> 1 - ts NC.@> 0)
+        ode = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot (NC.subVector 0 k initials) ts
+        ext = extensionFunc k ts ode
+        differences = NC.mapVector (\x -> abs (x - NC.atIndex lowers k)) ext
+        stopIndex = NC.minIndex differences
+        solution = map (NC.subVector 0 stopIndex) $ NC.toColumns ode ++ [ext]
+        ts' = NC.subVector stopIndex (NC.dim ts - stopIndex) ts
+        xdot' = focFunc uppers
+        initials' = NC.fromList $ map (`NC.atIndex` (stopIndex-1)) solution
+        ode' = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot' initials' ts'
+        solution' = NC.fromColumns $ zipWith (\x y -> NC.join [x,y]) solution $ NC.toColumns ode'
 
 -- Forward shooting method
 forwardShooting ::
@@ -92,33 +94,29 @@ forwardShooting ::
   -> Double                                           -- lower bound on estimate
   -> Double                                           -- upper bound on estimate
   -> (Double, NC.Matrix Double)                       -- tuple of estimate and matrix of solutions
-forwardShooting bUpper lowers uppers err ts low high = do
-  let guess = 0.5 * (low + high)
-  let tss = ts guess
-  let s = solveODE lowers uppers tss
-  if high - low < err
-    then (guess, s)
-    else do
-      let bids = NC.toList $ ts guess
-      let costs = map NC.toList $ NC.toColumns s
-      let inits = map head costs
-      let condition1 = concat $ zipWith (\l c -> map (\x -> l <= x && x <= bUpper) c) inits costs
-      let condition2 = concatMap (zipWith (>) bids) costs
-      let condition3 = zipWith (<) bids $ drop 1 bids
-      if and (condition1 ++ condition2 ++ condition3)
-        then forwardShooting bUpper lowers uppers err ts low guess
-        else forwardShooting bUpper lowers uppers err ts guess high
+forwardShooting bUpper lowers uppers err ts low high
+  | high - low < err = (guess, s)
+  | and (condition1 ++ condition2 ++ condition3) = forwardShooting bUpper lowers uppers err ts low guess
+  | otherwise = forwardShooting bUpper lowers uppers err ts guess high
+  where guess = 0.5 * (low + high)
+        s = solveODE lowers uppers $ ts guess
+        bids = NC.toList $ ts guess
+        costs = map NC.toList $ NC.toColumns s
+        inits = map head costs
+        condition1 = concat $ zipWith (\l c -> map (\x -> l <= x && x <= bUpper) c) inits costs
+        condition2 = concatMap (zipWith (>) bids) costs
+        condition3 = zipWith (<) bids $ drop 1 bids
 
 -- Main
 main :: IO ()
 main = do
-  let w = 0.5
+  let w = 0.75
   let reps = [0.25, 0.5, 0.75]
   let n = length reps
   let lowers = B.lowerExt w reps
   let uppers = B.upperExt w reps
   let bUpper = B.upperBoundBidsFunc lowers uppers
-  let ts low = NC.linspace 10000 (low, bUpper-0.001)
+  let ts low = NC.linspace 10000 (low, bUpper-0.09)
   let low = lowers !! 1
   let high = bUpper
   let err = 1E-6
