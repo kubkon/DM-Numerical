@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import sys
 
+csv.field_size_limit(1000000000)
+
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 ## for Palatino and other serif fonts use:
 #rc('font',**{'family':'serif','serif':['Palatino']))

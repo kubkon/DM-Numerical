@@ -6,16 +6,6 @@ import qualified Data.Maybe as DM
 import qualified Data.String.Utils as UTILS
 import qualified Bajari as B
 
--- Function for estimating c(b)
-estimateC ::
-  Double -- vector of lower extremities
-  -> NC.Vector Double        -- lower bound on bids
-  -> Double        -- extended cost
-estimateC bLow lowers =
-  let n = NC.dim lowers
-      sum' = NC.foldVector (\x acc -> acc + 1 / (bLow - x)) 0 lowers
-  in bLow - (fromIntegral n - 1) / sum'
-
 -- Function for estimating k and c(b)
 estimateKC ::
   Double
@@ -25,7 +15,8 @@ estimateKC bLow lowers =
   let n = NC.dim lowers
       ks = [2..n]
       subListLowers = map (\i -> NC.subVector 0 i lowers) ks
-      costs = map (estimateC bLow) subListLowers
+      estimateC ls = bLow  - fromIntegral (NC.dim ls - 1) / NC.foldVector (\x acc -> acc + 1 / (bLow - x)) 0 ls
+      costs = map estimateC subListLowers
       candidates = zip ks costs
       test (k, cost)
         | k < n = (listLowers !! (k-1) <= cost) && (cost < listLowers !! k)
@@ -110,13 +101,13 @@ forwardShooting bUpper lowers uppers err ts low high
 -- Main
 main :: IO ()
 main = do
-  let w = 0.75
+  let w = 0.5
   let reps = [0.25, 0.5, 0.75]
   let n = length reps
   let lowers = B.lowerExt w reps
   let uppers = B.upperExt w reps
   let bUpper = B.upperBoundBidsFunc lowers uppers
-  let ts low = NC.linspace 10000 (low, bUpper-0.09)
+  let ts low = NC.linspace 10000 (low, bUpper-0.1)
   let low = lowers !! 1
   let high = bUpper
   let err = 1E-6
