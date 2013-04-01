@@ -6,13 +6,10 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import rc
-import sys
 
 csv.field_size_limit(1000000000)
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
-## for Palatino and other serif fonts use:
-#rc('font',**{'family':'serif','serif':['Palatino']))
 rc('text', usetex=True)
 matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
 
@@ -31,7 +28,6 @@ def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
         else:
           diffs = list(map(lambda x: abs(x-b), bids))
           index = diffs.index(min(diffs))
-          t_cdfs = list(filter(lambda x: cdfs.index(x) != i, cdfs))
           indexes = [j for j in range(n) if j != i]
           probability = fts.reduce(lambda x,y: x*y, [(1-cdfs[i](costs[i][index])) for i in indexes], 1)
           utility += [(b, (b-c)*probability)]
@@ -137,3 +133,12 @@ labels_2 = ['NO {}: Best response'.format(i) for i in range(1, n+1)]
 labels = fts.reduce(lambda acc,x: acc + [x[0], x[1]], zip(labels_1, labels_2), [])
 plt.legend(labels, loc='upper left')
 plt.savefig('sufficiency.pdf')
+
+for i, c, sc, sb in zip(range(1, n+1), costs, s_costs, s_bids):
+  plt.figure()
+  plt.plot(c, bids, 'b')
+  plt.plot(sc, sb, 'r.')
+  plt.grid()
+  plt.xlabel(r"Cost-hat, $\hat{c}_i$")
+  plt.ylabel(r"Bid-hat, $\hat{b}_i$")
+  plt.savefig('sufficiency_{}.pdf'.format(i))

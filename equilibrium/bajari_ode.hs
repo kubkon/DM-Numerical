@@ -64,7 +64,7 @@ solveODE ::
   -> NC.Matrix Double
 solveODE odeSolver k lowers uppers ts sol
   | k == NC.dim lowers = sol
-  | otherwise = sol'
+  | otherwise = solveODE odeSolver (k+1) lowers uppers ts sol'
   where ext = extensionFunc k ts sol
         differences = NC.mapVector (\x -> abs (x - NC.atIndex lowers k)) ext
         stopIndex = NC.minIndex differences
@@ -107,13 +107,13 @@ forwardShooting bUpper lowers uppers err ts low high
 -- Main
 main :: IO ()
 main = do
-  let w = 0.5
-  let reps = [0.25, 0.5, 0.75]
+  let w = 0.45
+  let reps = [0.2, 0.4, 0.6, 0.8]
   let n = length reps
   let lowers = B.lowerExt w reps
   let uppers = B.upperExt w reps
   let bUpper = B.upperBoundBidsFunc lowers uppers
-  let ts low = NC.linspace 10000 (low, bUpper-0.1)
+  let ts low = NC.linspace 10000 (low, bUpper-0.013)
   let low = lowers !! 1
   let high = bUpper
   let err = 1E-6
