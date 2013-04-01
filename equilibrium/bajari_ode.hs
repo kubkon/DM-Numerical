@@ -52,28 +52,28 @@ focFunc uppers t ys =
 
 -- Solve ODE function
 solveODE ::
-  NC.Vector Double
+  ((Double -> NC.Vector Double -> NC.Vector Double)
+    -> NC.Vector Double
+    -> NC.Vector Double
+    -> NC.Matrix Double)
+  -> Int
+  -> NC.Vector Double
   -> NC.Vector Double
   -> NC.Vector Double
   -> NC.Matrix Double
-solveODE lowers uppers ts
-  | k < n = solution'
-  | otherwise = ode
-  where n = NC.dim lowers
-        (k, cost) = estimateKC (NC.atIndex ts 0) lowers
-        initials = NC.mapVector (min cost) lowers
-        xdot = focFunc (NC.subVector 0 k uppers)
-        step = 0.01 * (ts NC.@> 1 - ts NC.@> 0)
-        ode = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot (NC.subVector 0 k initials) ts
-        ext = extensionFunc k ts ode
+  -> NC.Matrix Double
+solveODE odeSolver k lowers uppers ts sol
+  | k == NC.dim lowers = sol
+  | otherwise = sol'
+  where ext = extensionFunc k ts sol
         differences = NC.mapVector (\x -> abs (x - NC.atIndex lowers k)) ext
         stopIndex = NC.minIndex differences
-        solution = map (NC.subVector 0 stopIndex) $ NC.toColumns ode ++ [ext]
+        tempSol = map (NC.subVector 0 stopIndex) $ NC.toColumns sol ++ [ext]
         ts' = NC.subVector stopIndex (NC.dim ts - stopIndex) ts
-        xdot' = focFunc uppers
-        initials' = NC.fromList $ map (`NC.atIndex` (stopIndex-1)) solution
-        ode' = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6 xdot' initials' ts'
-        solution' = NC.fromColumns $ zipWith (\x y -> NC.join [x,y]) solution $ NC.toColumns ode'
+        xdot' = focFunc (NC.subVector 0 (k+1) uppers)
+        initials = NC.fromList $ map (`NC.atIndex` (stopIndex-1)) tempSol
+        ode' = odeSolver xdot' initials ts'
+        sol' = NC.fromColumns $ zipWith (\x y -> NC.join [x,y]) tempSol $ NC.toColumns ode'
 
 -- Forward shooting method
 forwardShooting ::
@@ -90,8 +90,14 @@ forwardShooting bUpper lowers uppers err ts low high
   | and (condition1 ++ condition2 ++ condition3) = forwardShooting bUpper lowers uppers err ts low guess
   | otherwise = forwardShooting bUpper lowers uppers err ts guess high
   where guess = 0.5 * (low + high)
-        s = solveODE lowers uppers $ ts guess
-        bids = NC.toList $ ts guess
+        tss = ts guess
+        (k, cost) = estimateKC (NC.atIndex tss 0) lowers
+        initials = NC.mapVector (min cost) lowers
+        xdot = focFunc (NC.subVector 0 k uppers)
+        step = 0.01 * (tss NC.@> 1 - tss NC.@> 0)
+        odeSolver = ODE.odeSolveV ODE.RKf45 step 1.49012E-6 1.49012E-6
+        s = solveODE odeSolver k lowers uppers tss $ odeSolver xdot (NC.subVector 0 k initials) tss
+        bids = NC.toList tss
         costs = map NC.toList $ NC.toColumns s
         inits = map head costs
         condition1 = concat $ zipWith (\l c -> map (\x -> l <= x && x <= bUpper) c) inits costs
