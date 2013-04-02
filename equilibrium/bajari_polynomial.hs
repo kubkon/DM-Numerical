@@ -1,20 +1,9 @@
 import qualified Numeric.Container as NC
 import qualified Numeric.GSL.Minimization as GSL
 import qualified Test.HUnit as HUNIT
+import qualified Data.List.Split as DLS
 import qualified Data.String.Utils as UTILS
-import qualified Foreign.Storable as FS
 import qualified Bajari as B
-
--- Split list into list of sublists
-split :: (Num a, FS.Storable a)
-  => Int   -- length of a sublist
-  -> Int   -- desired number of sublist
-  -> [a]   -- input list
-  -> [[a]] -- output list of sublists
-split l n xs =
-  let vXs = NC.fromList xs
-      indexes = [0,l..(l*(n-1))]
-  in map (NC.toList . (\i -> NC.subVector i l vXs)) indexes
 
 -- (Scalar) cost function
 costFunc ::
@@ -83,7 +72,7 @@ objFunc granularity bUpper lowers uppers params =
       cs = drop 1 params
       n = length lowers
       m = length cs `div` fromIntegral n
-      vCs = map NC.fromList $ split m n cs
+      vCs = map NC.fromList $ DLS.chunksOf m cs
       bs = NC.linspace granularity (bLow, bUpper)
       focSq b = NC.sumElements $ NC.mapVector (**2) $ focFunc lowers uppers bLow vCs b
       foc = NC.sumElements $ NC.mapVector focSq bs
@@ -101,19 +90,16 @@ minimizeObj ::
   -> ([Double] -> Double) -- objective function
   -> [Double]             -- initial values for the parameters to estimate
   -> [Double]             -- initial size of the search box
-  -> IO [Double]          -- minimized parameters
-minimizeObj n i j objective params sizeBox = do
-  let (s,_) = GSL.minimize GSL.NMSimplex2 1E-8 100000 sizeBox objective params
-  print s
-  if i == j
-    then return s
-    else do
-      let b = head s
-      let i' = i+1
-      let sizeBox' = take (n*i' + 1) [1E-2,1E-2..]
-      let cs' = split i n $ drop 1 s
-      let params' = b : concatMap (++ [1E-6]) cs'
-      minimizeObj n i' j objective params' sizeBox'
+  -> [Double]             -- minimized parameters
+minimizeObj n i j objective params sizeBox
+  | i == j = s
+  | otherwise = minimizeObj n i' j objective params' sizeBox'
+  where (s,_) = GSL.minimize GSL.NMSimplex2 1E-8 100000 sizeBox objective params
+        b = head s
+        i' = i+1
+        sizeBox' = take (n*i' + 1) [1E-2,1E-2..]
+        cs' = DLS.chunksOf i $ drop 1 s
+        params' = b : concatMap (++ [1E-6]) cs'
 
 -- Main
 main :: IO ()
@@ -131,9 +117,10 @@ main = do
   let l1 = (lowers !! 1) + 1E-3
   let initSizeBox = take (n*numCoeffs + 1) [1E-1,1E-1..]
   let initConditions = take (n*numCoeffs + 1) (l1 : [1E-2,1E-2..])
-  s <- minimizeObj n numCoeffs desiredNumCoeffs objective initConditions initSizeBox
+  let s = minimizeObj n numCoeffs desiredNumCoeffs objective initConditions initSizeBox
+  print s
   let bLow = head s
-  let cs = split desiredNumCoeffs n $ drop 1 s
+  let cs = DLS.chunksOf desiredNumCoeffs $ drop 1 s
   let filePath = "polynomial.out"
   let fileContents = UTILS.join "\n" [
         UTILS.join " " (["w", "reps", "b_lower", "b_upper"] ++ [UTILS.join "_" ["cs", show i] | i <- [0..n-1]]),
