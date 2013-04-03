@@ -1,5 +1,7 @@
 module PolynomialProjection (
-  solve
+  solve,
+  solve',
+  costFunction
 ) where
 
 import qualified Numeric.Container as NC
@@ -26,8 +28,28 @@ solve bUpper lowers uppers i j granularity params sizeBox
         b = head s
         i' = i+1
         sizeBox' = take (length lowers * i' + 1) [1E-2,1E-2..]
-        cs' = DLS.chunksOf i $ drop 1 s
-        params' = b : concatMap (++ [1E-6]) cs'
+        cs = DLS.chunksOf i $ drop 1 s
+        params' = b : concatMap (++ [1E-6]) cs
+
+solve' ::
+  Double      -- lower bound on bids
+  -> Double   -- upper bound on bids
+  -> [Double] -- list of lower extremities
+  -> [Double] -- list of upper extremities
+  -> Int      -- current number of polynomial coefficients per bidder
+  -> Int      -- desired number of polynomial coefficients per bidder
+  -> Int      -- granularity
+  -> [Double] -- initial values for the parameters to estimate
+  -> [Double] -- initial size of the search box
+  -> [Double] -- minimized parameters
+solve' bLow bUpper lowers uppers i j granularity params sizeBox
+  | i == j = s
+  | otherwise = solve' bLow bUpper lowers uppers i' j granularity params' sizeBox'
+  where (s,_) = MIN.minimize MIN.NMSimplex2 1E-8 100000 sizeBox obj params
+        obj = objective' granularity bLow bUpper lowers uppers
+        i' = i+1
+        sizeBox' = take (length lowers * i') [1E-2,1E-2..]
+        params' = concatMap (++ [1E-6]) $ DLS.chunksOf i s
 
 -- (Scalar) cost function
 costFunction ::
@@ -101,6 +123,24 @@ objective granularity bUpper lowers uppers params =
       focSq b = NC.sumElements $ NC.mapVector (**2) $ firstOrderCondition lowers uppers bLow vCs b
       foc = NC.sumElements $ NC.mapVector focSq bs
       upperBound = NC.sumElements $ NC.mapVector (**2) $ upperBoundaryCondition lowers bLow bUpper vCs
+  in foc + fromIntegral granularity * upperBound
+
+objective' ::
+  Int         -- grid granularity
+  -> Double   -- lower bound on bids
+  -> Double   -- upper bound on bids
+  -> [Double] -- list of lower extremities
+  -> [Double] -- list of upper extremities
+  -> [Double] -- parameters to estimate
+  -> Double   -- value of the objective
+objective' granularity bLow bUpper lowers uppers params =
+  let n = length lowers
+      m = length params `div` fromIntegral n
+      vParams = map NC.fromList $ DLS.chunksOf m params
+      bs = NC.linspace granularity (bLow, bUpper)
+      focSq b = NC.sumElements $ NC.mapVector (**2) $ firstOrderCondition lowers uppers bLow vParams b
+      foc = NC.sumElements $ NC.mapVector focSq bs
+      upperBound = NC.sumElements $ NC.mapVector (**2) $ upperBoundaryCondition lowers bLow bUpper vParams
   in foc + fromIntegral granularity * upperBound
 
 -- Test costFunction
