@@ -5,18 +5,20 @@ import qualified ForwardShooting as FS
 import qualified Numeric.GSL.ODE as ODE
 import qualified Numeric.Container as NC
 import qualified PolynomialProjection as PP
+import qualified System.Environment as SE
 
 main :: IO ()
 main = do
+  param <- SE.getArgs
   -- prepare the scenario
-  let w = 0.45
-  let reps = [0.2, 0.4, 0.6, 0.8]
+  let w = 0.5
+  let reps = [0.25, 0.35, 0.6, 0.75, 0.9]
   let n = length reps
   let lowers = C.lowerExtremities w reps
   let uppers = C.upperExtremities w reps
   let bUpper = C.upperBoundOnBids lowers uppers
   -- solve using the Forward Shooting Method
-  let ts low = NC.linspace 10000 (low, bUpper-0.013)
+  let ts low = NC.linspace 10000 (low, bUpper - (read $ head param :: Double))
   let low = lowers !! 1
   let high = bUpper
   let err = 1E-6
@@ -29,7 +31,7 @@ main = do
   let lowers' = map (`NC.atIndex` index) costs
   -- solve the system when k = n using the Polynomial Projection Method
   let numCoeffs = 3
-  let desiredNumCoeffs = 5
+  let desiredNumCoeffs = 8
   let initSizeBox = take (n*numCoeffs) [1E-1,1E-1..]
   let initConditions = take (n*numCoeffs) [1E-2,1E-2..]
   let ppSol = PP.solve' bLow' bUpper lowers' uppers numCoeffs desiredNumCoeffs 100 initConditions initSizeBox
