@@ -104,4 +104,6 @@ solveODE odeSolver k lowers uppers ts sol
         xdot' = focFunc (NC.subVector 0 (k+1) uppers)
         initials = NC.fromList $ map (`NC.atIndex` (stopIndex-1)) tempSol
         ode' = odeSolver xdot' initials ts'
-        sol' = NC.fromColumns $ zipWith (\x y -> NC.join [x,y]) tempSol $ NC.toColumns ode'
+        sol'
+          | NC.dim ts' <= 1 = NC.fromColumns tempSol
+          | otherwise = NC.fromColumns $ zipWith (\x y -> NC.join [x,y]) tempSol $ NC.toColumns ode'
