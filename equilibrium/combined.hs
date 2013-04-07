@@ -1,4 +1,5 @@
 import qualified Common as C
+import qualified Control.Spoon as CS
 import qualified Data.List.Split as DLS
 import qualified Data.String.Utils as DSU
 import qualified ForwardShooting as FS
@@ -7,22 +8,34 @@ import qualified Numeric.Container as NC
 import qualified PolynomialProjection as PP
 import qualified System.Environment as SE
 
+fsmHelper ::
+  Double                                  -- upper bound on bids
+  -> [Double]                             -- list of lower extremities
+  -> [Double]                             -- list of upper extremities
+  -> Double                               -- input Lipschitz parameter
+  -> (Double, (Double, NC.Matrix Double)) -- output Lipshitz parameter, lower bound on bids and ODE solution matrix
+fsmHelper bUpper lowers uppers param = case fsmOutput of
+  Just (x,y) -> (param, (x,y))
+  Nothing -> fsmHelper bUpper lowers uppers $ param + 0.001
+  where fsmOutput = CS.teaspoon $
+                    FS.solve bUpper (NC.fromList lowers) (NC.fromList uppers) ODE.RKf45 1E-6 ts (lowers !! 1) bUpper
+        ts l = NC.linspace 10000 (l, bUpper - param)
+
 main :: IO ()
 main = do
-  param <- SE.getArgs
+  params <- SE.getArgs
+  let params' = map read params :: [Double]
+  let param = head params'
+  let w = params' !! 1
+  let reps = tail $ tail params'
   -- prepare the scenario
-  let w = 0.5
-  let reps = [0.25, 0.35, 0.6, 0.75, 0.9]
   let n = length reps
   let lowers = C.lowerExtremities w reps
   let uppers = C.upperExtremities w reps
   let bUpper = C.upperBoundOnBids lowers uppers
   -- solve using the Forward Shooting Method
-  let ts low = NC.linspace 10000 (low, bUpper - (read $ head param :: Double))
-  let low = lowers !! 1
-  let high = bUpper
-  let err = 1E-6
-  let (bLow, fsmSol) = FS.solve bUpper (NC.fromList lowers) (NC.fromList uppers) ODE.RKf45 err ts low high
+  let (param', (bLow, fsmSol)) = fsmHelper bUpper lowers uppers param
+  let ts low = NC.linspace 10000 (low, bUpper - param')
   -- get the index when k = n
   let bids = ts bLow
   let costs = NC.toColumns fsmSol
