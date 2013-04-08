@@ -1,4 +1,5 @@
 import qualified Common as C
+import qualified Control.DeepSeq as CDS
 import qualified Control.Spoon as CS
 import qualified Data.List.Split as DLS
 import qualified Data.String.Utils as DSU
@@ -8,6 +9,11 @@ import qualified Numeric.Container as NC
 import qualified PolynomialProjection as PP
 import qualified System.Environment as SE
 
+newtype NFMatrix t = NFMatrix (NC.Matrix t)
+
+instance CDS.NFData (NFMatrix t) where
+  rnf x = x `seq` ()
+
 fsmHelper ::
   Double                                  -- upper bound on bids
   -> [Double]                             -- list of lower extremities
@@ -15,26 +21,25 @@ fsmHelper ::
   -> Double                               -- input Lipschitz parameter
   -> (Double, (Double, NC.Matrix Double)) -- output Lipshitz parameter, lower bound on bids and ODE solution matrix
 fsmHelper bUpper lowers uppers param = case fsmOutput of
-  Just (x,y) -> (param, (x,y))
-  Nothing -> fsmHelper bUpper lowers uppers $ param + 0.001
-  where fsmOutput = CS.teaspoon $
-                    FS.solve bUpper (NC.fromList lowers) (NC.fromList uppers) ODE.RKf45 1E-6 ts (lowers !! 1) bUpper
+  Just (x, NFMatrix y) -> (param, (x, y))
+  Nothing -> fsmHelper bUpper lowers uppers $ param + 1E-3
+  where fsmOutput = CS.spoon (bLow, NFMatrix sol)
+        (bLow, sol) = FS.solve bUpper (NC.fromList lowers) (NC.fromList uppers) ODE.RKf45 1E-6 ts (lowers !! 1) bUpper
         ts l = NC.linspace 10000 (l, bUpper - param)
 
 main :: IO ()
 main = do
   params <- SE.getArgs
   let params' = map read params :: [Double]
-  let param = head params'
-  let w = params' !! 1
-  let reps = tail $ tail params'
+  let w = head params'
+  let reps = tail params'
   -- prepare the scenario
   let n = length reps
   let lowers = C.lowerExtremities w reps
   let uppers = C.upperExtremities w reps
   let bUpper = C.upperBoundOnBids lowers uppers
   -- solve using the Forward Shooting Method
-  let (param', (bLow, fsmSol)) = fsmHelper bUpper lowers uppers param
+  let (param', (bLow, fsmSol)) = fsmHelper bUpper lowers uppers 1E-3
   let ts low = NC.linspace 10000 (low, bUpper - param')
   -- get the index when k = n
   let bids = ts bLow
