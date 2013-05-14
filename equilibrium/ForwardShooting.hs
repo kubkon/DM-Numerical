@@ -1,6 +1,5 @@
 module ForwardShooting (
-  solve,
-  focFunc
+  solve
 ) where
 
 import Data.List (find)
