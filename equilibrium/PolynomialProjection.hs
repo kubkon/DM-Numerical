@@ -4,10 +4,10 @@ module PolynomialProjection (
   costFunction
 ) where
 
+import Data.List.Split (chunksOf)
 import qualified Numeric.Container as NC
-import qualified Numeric.GSL.Minimization as MIN
+import Numeric.GSL.Minimization (minimize,MinimizeMethod(NMSimplex2))
 import qualified Test.HUnit as HUNIT
-import qualified Data.List.Split as DLS
 
 -- Minimization
 solve ::
@@ -23,12 +23,12 @@ solve ::
 solve bUpper lowers uppers i j granularity params sizeBox
   | i == j = s
   | otherwise = solve bUpper lowers uppers i' j granularity params' sizeBox'
-  where (s,_) = MIN.minimize MIN.NMSimplex2 1E-8 100000 sizeBox obj params
+  where (s,_) = minimize NMSimplex2 1E-8 100000 sizeBox obj params
         obj = objective granularity bUpper lowers uppers
         b = head s
         i' = i+1
         sizeBox' = take (length lowers * i' + 1) [1E-2,1E-2..]
-        cs = DLS.chunksOf i $ drop 1 s
+        cs = chunksOf i $ drop 1 s
         params' = b : concatMap (++ [1E-6]) cs
 
 solve' ::
@@ -45,11 +45,11 @@ solve' ::
 solve' bLow bUpper lowers uppers i j granularity params sizeBox
   | i == j = s
   | otherwise = solve' bLow bUpper lowers uppers i' j granularity params' sizeBox'
-  where (s,_) = MIN.minimize MIN.NMSimplex2 1E-8 100000 sizeBox obj params
+  where (s,_) = minimize NMSimplex2 1E-8 100000 sizeBox obj params
         obj = objective' granularity bLow bUpper lowers uppers
         i' = i+1
         sizeBox' = take (length lowers * i') [1E-2,1E-2..]
-        params' = concatMap (++ [1E-6]) $ DLS.chunksOf i s
+        params' = concatMap (++ [1E-6]) $ chunksOf i s
 
 -- (Scalar) cost function
 costFunction ::
@@ -118,7 +118,7 @@ objective granularity bUpper lowers uppers params =
       cs = drop 1 params
       n = length lowers
       m = length cs `div` fromIntegral n
-      vCs = map NC.fromList $ DLS.chunksOf m cs
+      vCs = map NC.fromList $ chunksOf m cs
       bs = NC.linspace granularity (bLow, bUpper)
       focSq b = NC.sumElements $ NC.mapVector (**2) $ firstOrderCondition lowers uppers bLow vCs b
       foc = NC.sumElements $ NC.mapVector focSq bs
@@ -136,7 +136,7 @@ objective' ::
 objective' granularity bLow bUpper lowers uppers params =
   let n = length lowers
       m = length params `div` fromIntegral n
-      vParams = map NC.fromList $ DLS.chunksOf m params
+      vParams = map NC.fromList $ chunksOf m params
       bs = NC.linspace granularity (bLow, bUpper)
       focSq b = NC.sumElements $ NC.mapVector (**2) $ firstOrderCondition lowers uppers bLow vParams b
       foc = NC.sumElements $ NC.mapVector focSq bs

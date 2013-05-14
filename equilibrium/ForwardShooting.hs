@@ -1,23 +1,24 @@
 module ForwardShooting (
-  solve
+  solve,
+  focFunc
 ) where
 
-import qualified Numeric.GSL.ODE as ODE
+import Data.List (find)
+import Data.Maybe (fromJust)
 import qualified Numeric.Container as NC
-import qualified Data.List as DL
-import qualified Data.Maybe as DM
+import Numeric.GSL.ODE (ODEMethod,odeSolveV)
 
 -- Forward shooting method
 solve ::
-  Double                                               -- upper bound on bids
-  -> NC.Vector Double                                  -- vector of lower extremities
-  -> NC.Vector Double                                  -- vector of upper extremities
-  -> ODE.ODEMethod                                     -- ODE solution method
-  -> Double                                            -- desired error
-  -> (Double -> NC.Vector Double)                      -- grid function
-  -> Double                                            -- lower bound on estimate
-  -> Double                                            -- upper bound on estimate
-  -> (Double, NC.Matrix Double)                        -- tuple of estimate and matrix of solutions
+  Double                          -- upper bound on bids
+  -> NC.Vector Double             -- vector of lower extremities
+  -> NC.Vector Double             -- vector of upper extremities
+  -> ODEMethod                    -- ODE solution method
+  -> Double                       -- desired error
+  -> (Double -> NC.Vector Double) -- grid function
+  -> Double                       -- lower bound on estimate
+  -> Double                       -- upper bound on estimate
+  -> (Double, NC.Matrix Double)   -- tuple of estimate and matrix of solutions
 solve bUpper lowers uppers odeMethod err ts low high
   | high - low < err = (guess, s)
   | and (condition1 ++ condition2 ++ condition3) = solve bUpper lowers uppers odeMethod err ts low guess
@@ -28,7 +29,7 @@ solve bUpper lowers uppers odeMethod err ts low high
         initials = NC.mapVector (min cost) lowers
         xdot = focFunc (NC.subVector 0 k uppers)
         step = 0.01 * (tss NC.@> 1 - tss NC.@> 0)
-        odeSolver = ODE.odeSolveV odeMethod step 1.49012E-6 1.49012E-6
+        odeSolver = odeSolveV odeMethod step 1.49012E-6 1.49012E-6
         s = solveODE odeSolver k lowers uppers tss $ odeSolver xdot (NC.subVector 0 k initials) tss
         bids = NC.toList tss
         costs = map NC.toList $ NC.toColumns s
@@ -53,7 +54,7 @@ estimateKC bLow lowers =
         | k < n = (listLowers !! (k-1) <= cost) && (cost < listLowers !! k)
         | otherwise = listLowers !! (k-1) <= cost
         where listLowers = NC.toList lowers
-      (result, _) = DM.fromJust $ DL.find snd $ zip candidates $ map test candidates
+      (result, _) = fromJust $ find snd $ zip candidates $ map test candidates
   in result
 
 -- Extension vector function

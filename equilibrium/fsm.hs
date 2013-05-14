@@ -3,16 +3,19 @@ import qualified ForwardShooting as FS
 import qualified Numeric.GSL.ODE as ODE
 import qualified Numeric.Container as NC
 import qualified Data.String.Utils as DSU
+import qualified System.Environment as SE
 
 main :: IO ()
 main = do
-  let w = 0.45
+  params <- SE.getArgs
+  let param = read $ head params :: Double
+  let w = 0.55
   let reps = [0.2, 0.4, 0.6, 0.8]
   let n = length reps
   let lowers = C.lowerExtremities w reps
   let uppers = C.upperExtremities w reps
   let bUpper = C.upperBoundOnBids lowers uppers
-  let ts low = NC.linspace 10000 (low, bUpper-0.013)
+  let ts low = NC.linspace 10000 (low, bUpper-param)
   let low = lowers !! 1
   let high = bUpper
   let err = 1E-6
