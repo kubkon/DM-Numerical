@@ -1,8 +1,11 @@
+import matplotlib
 from matplotlib import rc
 import matplotlib.pyplot as plt
 import numpy as np
 
+rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
+matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
 
 def backward_runge_kutta(ode, terminal, step, begin):
   table = [terminal]
@@ -21,7 +24,8 @@ def backward_runge_kutta(ode, terminal, step, begin):
     y1 -= 1/6 * (v_1 + 2*v_2 + 2*v_3 + v_4)
     y2 -= 1/6 * (w_1 + 2*w_2 + 2*w_3 + w_4)
     t -= step
-    table += [(t, y1, y2)]
+    if t > begin:
+      table += [(t, y1, y2)]
   return table
 
 # Scenario
@@ -36,7 +40,7 @@ def ode(t,y1,y2):
   dy1 = (uppers[0] - y1) / (t - y2)
   dy2 = (uppers[1] - y2) / (t - y1)
   return (dy1, dy2)
-sol = backward_runge_kutta(ode, (b_upper, uppers[0], b_upper-0.005), 0.01, b_low + 0.15)
+sol = backward_runge_kutta(ode, (b_upper, uppers[0], b_upper-0.005), 0.01, b_low)
 
 # Compute theoretical results
 c1 = [lowers[0], uppers[0]]
@@ -53,11 +57,14 @@ t_bids = np.linspace(b[0], b[1], 10000)
 # Plot
 plt.figure()
 ts = list(map(lambda x: x[0], sol))
-plt.plot(list(map(lambda x: x[1], sol)), ts, 'p')
-plt.plot(list(map(lambda x: x[2], sol)), ts, 'p')
-plt.plot([inv1(b) for b in t_bids], t_bids)
-plt.plot([inv2(b) for b in t_bids], t_bids)
+plt.plot([inv1(b) for b in t_bids], t_bids, 'b')
+plt.plot(list(map(lambda x: x[1], sol)), ts, 'b.')
+plt.plot([inv2(b) for b in t_bids], t_bids, 'r--')
+plt.plot(list(map(lambda x: x[2], sol)), ts, 'rx')
+plt.xlim([0.0, 1.0])
+plt.xlabel(r"Cost-hat, $\hat{c}_i$")
+plt.ylabel(r"Bid-hat, $\hat{b}$")
+labels = ['NO 1: Theory', 'NO 1: Numerical', 'NO 2: Theory', 'NO 2: Numerical']
+plt.legend(labels, loc='upper left')
 plt.grid()
-plt.xlabel('Cost-hat, $\hat{c}_i$')
-plt.ylabel('Bid-hat, $\hat{b}$')
 plt.savefig('lipschitz.pdf')
