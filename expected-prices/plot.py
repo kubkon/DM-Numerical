@@ -50,7 +50,7 @@ for key in sorted(data_dct.keys()):
 plt.annotate('', xy=(0.4, 2.0), xycoords='data',
              xytext=(0.18, 0.9), textcoords='data',
              arrowprops=dict(arrowstyle="->"), fontsize=14)
-plt.annotate(r"as $(r_j-r_i)$ increases", xy=(0.4, 2.0),
+plt.annotate(r"as $(r_2-r_1)$ increases", xy=(0.4, 2.0),
              xycoords='data', fontsize=14)
 plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Average price")
@@ -58,7 +58,7 @@ plt.ylim([0.5, 5])
 plt.grid()
 l = plt.legend(prop={'size':14})
 matplotlib.rcParams.update({'font.size': 14})
-txt = moffsetbox.TextArea(r"Line\hspace{7mm} ($r_i$,\hspace{2.5mm} $r_j$)")
+txt = moffsetbox.TextArea(r"Line\hspace{7mm} ($r_1$,\hspace{2.5mm} $r_2$)")
 box = l._legend_box
 box.get_children().insert(0, txt)
 box.set_figure(box.figure)
