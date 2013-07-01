@@ -5,9 +5,11 @@ import functools as fts
 
 def upper_bound_bids(lowers, uppers):
   vals = np.linspace(uppers[0], uppers[1], 10000)
-  cdfs = map(lambda l, u: lambda x: uniform.cdf(x, l, u), lowers[1:], uppers[1:])
-  obj_func = lambda x: (x - uppers[0]) * fts.reduce(lambda p,r: p*r, [(1 - cdf(x)) for cdf in cdfs], 1)
-  tabulated = np.array([obj_func(v) for v in vals])
+  tabulated = []
+  for v in vals:
+    probs = [1-uniform(loc=l, scale=(u-l)).cdf(v) for l, u in zip(lowers[1:], uppers[1:])]
+    tabulated += [(v - uppers[0]) * fts.reduce(lambda p,r: p*r, probs, 1)]
+  tabulated = np.array(tabulated)
   return vals[np.argmax(tabulated)]
 
 cdef int ode(double t, double y[], double f[], void *params) nogil:
@@ -18,7 +20,6 @@ def solve(w, reputations):
   lowers = [(1-w)*r for r in reputations]
   uppers = list(map(lambda x: x + w, lowers))
   b_upper = upper_bound_bids(lowers, uppers)
-  print(b_upper)
 
   cdef gsl_odeiv2_system sys
   sys.function = ode
