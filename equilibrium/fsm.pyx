@@ -19,7 +19,9 @@ def upper_bound_bids(lowers, uppers):
 cdef int ode(double t, double y[], double f[], void *params) nogil:
   cdef int n = <int>(<double *>params)[0]
   cdef cnp.npy_intp shape[1]
-  cdef double * params_ = <double *>malloc(n*sizeof(double))
+  
+  cdef double * params_ = <double *> malloc(n*sizeof(double))
+
   cdef int i
   for i from 0 <= i < n:
     params_[i] = (<double *>params)[i+1]
@@ -36,6 +38,8 @@ cdef int ode(double t, double y[], double f[], void *params) nogil:
     for i from 0 <= i < n:
       f[i] = fs[i]
 
+  free(params_)
+
   return GSL_SUCCESS
 
 def solve(initial, uppers, bids):
@@ -45,10 +49,13 @@ def solve(initial, uppers, bids):
   sys.function = ode
   sys.jacobian = NULL
   sys.dimension = n
-  cdef double* params
-  params = <double *>malloc((n+1)*sizeof(double))
+  
+  cdef double* params = <double *> malloc((n+1)*sizeof(double))
+  if params is NULL:
+    raise MemoryError()
+
   cdef int i
-  params[0] = <double>n
+  params[0] = <double> n
   for i from 0 <= i < n:
     params[i+1] = uppers[i]
   sys.params = params
@@ -58,8 +65,7 @@ def solve(initial, uppers, bids):
       &sys, gsl_odeiv2_step_rkf45,
       1e-6, 1e-6, 0.0)
 
-  cdef double *y
-  y = <double *>malloc(n*sizeof(double))
+  cdef double *y = <double *> malloc(n*sizeof(double))
   if y is NULL:
     raise MemoryError()
   
@@ -69,7 +75,7 @@ def solve(initial, uppers, bids):
   cdef int status
   cdef double b, t
   t = bids[0]
-  sol = []
+  sol = [initial]
   for b in bids[1:]:
     status = gsl_odeiv2_driver_apply(d, &t, b, y)
 
@@ -77,15 +83,16 @@ def solve(initial, uppers, bids):
       print("Error, return value=%d\n" % status)
       break
 
-    costs = []
+    costs = np.empty(n, dtype=np.float64)
     for i from 0 <= i < n:
-      costs += [y[i]]
+      costs[i] = y[i]
     sol += [costs]
 
   free(params)
   free(y)
   gsl_odeiv2_driver_free(d)
-  return sol
+
+  return np.array(sol)
 
 def fsm(w, reputations):
   lowers = [(1-w)*r for r in reputations]
@@ -97,7 +104,9 @@ def fsm(w, reputations):
   epsilon = 1e-6
 
   # while high - low > epsilon:
-  guess = 0.5 * (low + high)
+  # guess = 0.5 * (low + high)
+  guess = 0.52
   bids = np.linspace(guess, b_upper - 1e-3, 10000)
-  costs = solve(lowers, uppers, bids)
-  print(costs)
+  costs = solve(lowers, uppers, bids).T
+  
+  return (bids, costs)
