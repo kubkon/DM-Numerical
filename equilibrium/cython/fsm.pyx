@@ -5,49 +5,47 @@ import numpy as np
 
 cnp.import_array()
 
-cdef int ode(double t, double y[], double f[], void *params) nogil:
-  cdef int n = <int>(<double *>params)[0]
+ctypedef struct Tode:
+  int n
+  double * params
+  int f(int, double *, double, double *, double *)
+
+cdef int f(int n, double * params, double t, double * y, double * f) with gil:
   cdef cnp.npy_intp shape[1]
-  
-  cdef double * params_ = <double *> calloc(n, sizeof(double))
-
-  cdef int i
+  shape[0] = <cnp.npy_intp> n
+  ys = cnp.PyArray_SimpleNewFromData(1, shape, cnp.NPY_DOUBLE, y)
+  uppers = cnp.PyArray_SimpleNewFromData(1, shape, cnp.NPY_DOUBLE, params)
+  rs = np.empty(n, dtype=np.float64)
   for i from 0 <= i < n:
-    params_[i] = (<double *>params)[i+1]
+    rs[i] = 1.0 / (t - ys[i])
+  const = np.ones(n) * (np.sum(rs) / (n - 1))
+  fs = (uppers - ys) * (const - rs)
+  for i from 0 <= i < n:
+    f[i] = fs[i]
+  return GSL_SUCCESS
 
+cdef int ode(double t, double y[], double f[], void *params) nogil:
+  cdef Tode * P = <Tode *> params
   with gil:
-    shape[0] = <cnp.npy_intp> n
-    ys = cnp.PyArray_SimpleNewFromData(1, shape, cnp.NPY_DOUBLE, y)
-    uppers = cnp.PyArray_SimpleNewFromData(1, shape, cnp.NPY_DOUBLE, params_)
-    rs = np.empty(n, dtype=np.float64)
-    for i from 0 <= i < n:
-      rs[i] = 1.0 / (t - ys[i])
-    const = np.ones(n) * (np.sum(rs) / (n - 1))
-    fs = (uppers - ys) * (const - rs)
-    for i from 0 <= i < n:
-      f[i] = fs[i]
-
-  free(params_)
-
+    P.f(P.n, P.params, t, y, f)
   return GSL_SUCCESS
 
 def solve(initial, uppers, bids):
   cdef int n = initial.size
+  cdef Tode P
+  P.n = n
+  cdef double * params = <double *> calloc(n, sizeof(double))
+  cdef int i
+  for i from 0 <= i < n:
+    params[i] = uppers[i]
+  P.params = params
+  P.f = f
 
   cdef gsl_odeiv2_system sys
   sys.function = ode
   sys.jacobian = NULL
   sys.dimension = n
-  
-  cdef double* params = <double *> calloc((n+1), sizeof(double))
-  if params is NULL:
-    raise MemoryError()
-
-  cdef int i
-  params[0] = <double> n
-  for i from 0 <= i < n:
-    params[i+1] = uppers[i]
-  sys.params = params
+  sys.params = &P
 
   cdef double hstart, epsAbs
   hstart = (bids[1] - bids[0]) / 100.0
@@ -64,7 +62,7 @@ def solve(initial, uppers, bids):
   for i from 0 <= i < n:
     y[i] = initial[i]
 
-  cdef int status
+  cdef int status, j
   cdef double t, ti
   t = bids[0]
   sol = [initial]
