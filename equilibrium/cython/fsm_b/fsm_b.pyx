@@ -1,6 +1,6 @@
 from cython_gsl cimport *
 from libc.stdlib cimport calloc, free
-from libc.math cimport exp, sqrt, pow
+from libc.math cimport exp, sqrt, pow, erf
 import numpy as np
 
 # struct describing truncated normal distribution
@@ -16,8 +16,34 @@ ctypedef struct Tode:
   # pointer to function describing system of ODEs
   int f(int, NormalParams *, double *, double, double *, double *) nogil
 
+def p_normal_cdf(params, support, x):
+  cdef NormalParams ps
+  ps.mu = params['mu']
+  ps.sigma = params['sigma']
+  cdef double[2] supp
+  supp[0] = support[0]
+  supp[1] = support[1]
+  return normal_cdf(ps, supp, x)
+
 cdef double normal_cdf(NormalParams params, double * support, double x) nogil:
-  return 1.0
+  cdef double mu = params.mu
+  cdef double sigma = params.sigma
+  cdef double eps = (x - mu) / sigma
+  cdef double eps_erf = (eps - mu) / sqrt(2 * pow(sigma,2))
+  cdef double alpha = (support[0] - mu) / sigma
+  cdef double alpha_erf = (alpha - mu) / sqrt(2 * pow(sigma,2))
+  cdef double beta = (support[1] - mu) / sigma
+  cdef double beta_erf = (beta - mu) / sqrt(2 * pow(sigma,2))
+  return (erf(eps_erf) - erf(alpha_erf)) / (erf(beta_erf) - erf(alpha_erf))
+
+def p_normal_pdf(params, support, x):
+  cdef NormalParams ps
+  ps.mu = params['mu']
+  ps.sigma = params['sigma']
+  cdef double[2] supp
+  supp[0] = support[0]
+  supp[1] = support[1]
+  return normal_pdf(ps, supp, x)
 
 cdef double normal_pdf(NormalParams params, double * support, double x) nogil:
   cdef double mu = params.mu
@@ -26,9 +52,9 @@ cdef double normal_pdf(NormalParams params, double * support, double x) nogil:
   if support[0] < x and x < support[1]:
     return 1.0 / sqrt(2 * pi * pow(sigma,2)) * exp(- pow(x - mu, 2) / 2*pow(sigma,2))
   else:
-    return 0.0
+    return 1e-6
 
-cdef int f(int n, NormalParams * params, double[] support, double t, double * y, double * f) nogil:
+cdef int f(int n, NormalParams * params, double * support, double t, double * y, double * f) nogil:
   """Evolves system of ODEs at a particular independent variable t,
   and for a vector of particular dependent variables y_i(t). Mathematically,
   dy_i(t)/dt = f_i(t, y_1(t), ..., y_n(t)).
@@ -43,7 +69,7 @@ cdef int f(int n, NormalParams * params, double[] support, double t, double * y,
   """
   cdef double * rs = <double *> calloc(n, sizeof(double))
   cdef int i
-  cdef double r, rs_sum, prob
+  cdef double r, rs_sum, num, den
   rs_sum = 0
 
   for i from 0 <= i < n:
@@ -53,8 +79,9 @@ cdef int f(int n, NormalParams * params, double[] support, double t, double * y,
 
   # this loop corresponds to the system of equations (1.26) in the thesis
   for i from 0 <= i < n:
-    prob = (1 - normal_cdf(params[i], support, y[i])) / normal_pdf(params[i], support, y[i])
-    f[i] = prob * (rs_sum / (n-1) - rs[i])
+    num = 1 - normal_cdf(params[i], support, y[i])
+    den = normal_pdf(params[i], support, y[i])
+    f[i] = num / den * (rs_sum / (n-1) - rs[i])
 
   free(rs)
   return GSL_SUCCESS
@@ -91,6 +118,7 @@ def solve(params, support, bids):
     param.sigma = params[i]['sigma']
     c_params[i] = param
 
+  # convert list of support params into C array
   cdef double[2] c_support
   c_support[0] = support[0]
   c_support[1] = support[1]
