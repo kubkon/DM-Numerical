@@ -2,12 +2,23 @@ from cython_gsl cimport *
 
 from libc.stdlib cimport calloc, free
 cimport libc.math as m
+
 import numpy as np
 
 cdef double c_cost_function(double low_ext,
-                           double b_lower,
-                           const gsl_vector * v,
-                           double b) nogil:
+                            double b_lower,
+                            const gsl_vector * v,
+                            double b) nogil:
+    """
+    Defines polynomial function that approximates equilibrium cost
+    function for each bidder.
+
+    Arguments:
+    low_ext -- lower extremity
+    b_lower -- lower bound on bids
+    v -- gsl_vector of polynomial coefficients
+    b -- bid value
+    """
     cdef size_t k = v.size
     cdef int i
     cdef double sums = 0
@@ -18,6 +29,11 @@ cdef double c_cost_function(double low_ext,
     return low_ext + sums
 
 def cost_function(low_ext, b_lower, v, b):
+    """
+    Python wrapper for c_cost_function. This function exists
+    mainly for internal (testing) purposes. Should not be used
+    as a standalone function.
+    """
     cdef double c_low_ext, c_b_lower, c_b
     c_low_ext = low_ext
     c_b_lower = b_lower
