@@ -31,7 +31,7 @@ cdef double c_cost_function(double low_ext,
 def cost_function(low_ext, b_lower, v, b):
     """
     Python wrapper for c_cost_function. This function exists
-    mainly for internal (testing) purposes. Should not be used
+    mainly for internal (testing) purposes. It should not be used
     as a standalone function.
     """
     cdef double c_low_ext, c_b_lower, c_b
@@ -41,11 +41,50 @@ def cost_function(low_ext, b_lower, v, b):
 
     cdef gsl_vector * c_v
     n = len(v)
-    c_v = gsl_vector_alloc (n)
+    c_v = gsl_vector_alloc(n)
     for i in range(n):
         gsl_vector_set(c_v, i, v[i])
 
     return c_cost_function(c_low_ext, c_b_lower, c_v, c_b)
+
+
+cdef double c_deriv_cost_function(double b_lower,
+                                  const gsl_vector * v,
+                                  double b) nogil:
+    """
+    Defines derivative of the polynomial cost function, c_cost_function.
+
+    Arguments:
+    b_lower -- lower bound on bids
+    v -- gsl_vector of polynomial coefficients
+    b -- bid value
+    """
+    cdef size_t k = v.size
+    cdef int i
+    cdef double sums = 0
+
+    for i from 0 <= i < k:
+        sums += (i+1) * gsl_vector_get(v, i) * m.pow(b - b_lower, i)
+
+    return sums
+
+def deriv_cost_function(b_lower, v, b):
+    """
+    Python wrapper for c_deriv_cost_function. This function exists
+    mainly for internal (testing) purposes. It should not be used
+    as a standalone function.
+    """
+    cdef double c_b_lower, c_b
+    c_b_lower = b_lower
+    c_b = b
+
+    cdef gsl_vector * c_v
+    n = len(v)
+    c_v = gsl_vector_alloc(n)
+    for i in range(n):
+        gsl_vector_set(c_v, i, v[i])
+
+    return c_deriv_cost_function(c_b_lower, c_v, c_b)
 
 
 cdef double min_f(const gsl_vector * v, void * params) nogil:
