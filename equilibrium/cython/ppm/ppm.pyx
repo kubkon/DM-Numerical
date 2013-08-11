@@ -87,6 +87,36 @@ def deriv_cost_function(b_lower, v, b):
     return c_deriv_cost_function(c_b_lower, c_v, c_b)
 
 
+cdef double c_objective_function(int k,
+                                 int granularity,
+                                 double b_lower,
+                                 double b_upper,
+                                 const gsl_vector * lower_exts,
+                                 const gsl_vector * upper_exts,
+                                 const gsl_vector * vs) nogil:
+    """
+    Defines objective function for the nonlinear minimization problem.
+
+    Arguments:
+    k -- number of polynomial coefficients per bidder
+    granularity -- grid granularity
+    b_lower -- lower bound on bids
+    b_upper -- upper bound on bids
+    lower_exts -- gsl_vector of lower extremities
+    upper_exts -- gsl_vector of upper extremities
+    vs -- gsl_vector of polynomial coefficients for each bidder
+    """
+    cdef double sums = 0
+    cdef size_t n = vs.size
+    cdef int i
+    cdef gsl_vector_view v
+
+    for i from 0 <= i < n:
+        v = gsl_vector_subvector(vs, i*(k+1), k)
+
+    return 1.0
+
+
 cdef double min_f(const gsl_vector * v, void * params) nogil:
     cdef double x, y
 
