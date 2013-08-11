@@ -1,6 +1,7 @@
 from cython_gsl cimport *
 
 from libc.stdlib cimport calloc, free
+from libc.stdio cimport printf
 cimport libc.math as m
 
 import numpy as np
@@ -107,14 +108,47 @@ cdef double c_objective_function(int k,
     vs -- gsl_vector of polynomial coefficients for each bidder
     """
     cdef double sums = 0
-    cdef size_t n = vs.size
+    cdef size_t n = lower_exts.size
     cdef int i
-    cdef gsl_vector_view v
+    cdef gsl_vector_view v_view
+    cdef gsl_vector * v
 
     for i from 0 <= i < n:
-        v = gsl_vector_subvector(vs, i*(k+1), k)
+        v_view = gsl_vector_subvector(vs, i*k, k)
+        v = &v_view.vector
+        for j from 0 <= j < k:
+            printf("%f", gsl_vector_get(v, j))
 
     return 1.0
+
+def objective_function(k, granularity, b_lower, b_upper,
+                       lower_exts, upper_exts, vs):
+    """
+    Python wrapper for c_objective_function.
+    """
+    cdef int c_k, c_granularity
+    cdef double c_b_lower, c_b_upper
+    c_k = k
+    c_granularity = granularity
+    c_b_lower = b_lower
+    c_b_upper = b_upper
+
+    cdef gsl_vector * c_lower_exts, * c_upper_exts, * c_vs
+    n = len(lower_exts)
+    c_lower_exts = gsl_vector_alloc(n)
+    c_upper_exts = gsl_vector_alloc(n)
+    for i in range(n):
+        gsl_vector_set(c_lower_exts, i, lower_exts[i])
+        gsl_vector_set(c_upper_exts, i, upper_exts[i])
+
+    n = len(vs)
+    c_vs = gsl_vector_alloc(n)
+    for i in range(n):
+        gsl_vector_set(c_vs, i, vs[i])
+
+    return c_objective_function(c_k, c_granularity, c_b_lower,
+                                c_b_upper, c_lower_exts, c_upper_exts,
+                                c_vs)
 
 
 cdef double min_f(const gsl_vector * v, void * params) nogil:
