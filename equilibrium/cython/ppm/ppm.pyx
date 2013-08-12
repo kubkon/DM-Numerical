@@ -156,19 +156,56 @@ cdef double c_objective_function(int k,
     upper_exts -- gsl_vector of upper extremities
     vs -- gsl_vector of polynomial coefficients for each bidder
     """
+    # Get number of bidders
+    cdef int n = lower_exts.size
+
+    # Generate grid of linearly spaced points
+    cdef gsl_vector * grid
+    grid = c_linspace(b_lower, b_upper, granularity)
+
+    # Compute first-order condition function over the grid
+    # for each bidder
     cdef double sums = 0
-    cdef size_t n = lower_exts.size
-    cdef int i
+    cdef double b, deriv, cost, lower_ext, upper_ext, g
+    cdef int i, j, l
     cdef gsl_vector_view v_view
     cdef gsl_vector * v
+    cdef double summed, t_lower_ext
+    cdef gsl_vector * t_v
 
     for i from 0 <= i < n:
+        # Extract vector of polynomial coefficients for
+        # bidder i
         v_view = gsl_vector_subvector(vs, i*k, k)
         v = &v_view.vector
-        for j from 0 <= j < k:
-            printf("%f", gsl_vector_get(v, j))
+        # Get lower and upper extremities for the current
+        # bidder
+        lower_ext = gsl_vector_get(lower_exts, i)
+        upper_ext = gsl_vector_get(upper_exts, i)
 
-    return 1.0
+        for j from 0 <= j < granularity:
+            # Get bid value
+            b = gsl_vector_get(grid, j)
+            # Get cost derivative value
+            deriv = c_deriv_cost_function(b_lower, v, b)
+            # Get cost value
+            cost = c_cost_function(lower_ext, b_lower, v, b)
+            # Calculate first-order condition at b
+            summed = 0
+            for l from 0 <= l < n:
+                v_view = gsl_vector_subvector(vs, l*k, k)
+                t_v = &v_view.vector
+                t_lower_ext = gsl_vector_get(lower_exts, l)
+                summed += 1 / (b - c_cost_function(t_lower_ext, b_lower, t_v, b))
+
+            g = deriv - (upper_ext - cost) * (1/(n-1) * summed - 1/(b - cost))
+            sums += m.pow(g, 2)
+
+        # Add upper boundary condition
+        cost = c_cost_function(lower_ext, b_lower, v, b_upper)
+        sums += granularity * m.pow(b_upper - cost, 2)
+
+    return sums
 
 def objective_function(k, granularity, b_lower, b_upper,
                        lower_exts, upper_exts, vs):
