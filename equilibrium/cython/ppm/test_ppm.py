@@ -1,7 +1,8 @@
 import pytest
 import numpy as np
 
-from ppm import cost_function, deriv_cost_function, objective_function
+from ppm import cost_function, deriv_cost_function,\
+                objective_function, linspace
 
 
 def test_cost_function():
@@ -50,6 +51,26 @@ def test_deriv_cost_function():
     
     # Compare
     assert expected == actual
+
+
+def test_linspace():
+    """
+    Tests linspace function, c_linspace.
+    """
+    # Setup scenario
+    begin = 0.0
+    end = 1.0
+    granularity = 1000
+
+    # Calculate expected result
+    expected = np.linspace(begin, end, granularity)
+
+    # Calculate actual result
+    actual = linspace(begin, end, granularity)
+
+    # Compare
+    for e, a in zip(expected, actual):
+        assert e == a
 
 
 def test_objective_function():

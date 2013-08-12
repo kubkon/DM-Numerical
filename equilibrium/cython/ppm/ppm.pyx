@@ -88,6 +88,55 @@ def deriv_cost_function(b_lower, v, b):
     return c_deriv_cost_function(c_b_lower, c_v, c_b)
 
 
+cdef gsl_vector * c_linspace(double begin, double end, int granularity) nogil:
+    """
+    Returns gsl_vector of linearly spaced points such that for each x
+    in the gsl_vector, begin <= x <= end, and for any two points x1, x2
+    in the gsl_vector such that x1 < x2, x2 - x1 =
+
+    Attributes:
+    begin -- starting point of the linearly spaced grid
+    end -- end point
+    granularity -- number of points in the grid (begin and end inclusive)
+    """
+    cdef gsl_vector * v
+    v = gsl_vector_alloc(granularity)
+
+    cdef double step, value
+    cdef int i
+
+    step = (end - begin) / (granularity - 1)
+
+    for i from 0 <= i < granularity:
+        value = begin + step * i
+        gsl_vector_set(v, i, value)
+
+    return v
+
+def linspace(begin, end,  granularity):
+    """
+    Python wrapper for c_linspace. This function exists mainly for internal
+    (testing) purposes. It should not be used as a standalone function.
+    """
+    cdef double c_begin, c_end
+    cdef int c_granularity
+    c_begin = begin
+    c_end = end
+    c_granularity = granularity
+
+    cdef gsl_vector * v
+    v = c_linspace(c_begin, c_end, c_granularity)
+
+    cdef int n = v.size
+    cdef int i
+    output = []
+
+    for i from 0 <= i < n:
+        output += [gsl_vector_get(v, i)]
+
+    return output
+
+
 cdef double c_objective_function(int k,
                                  int granularity,
                                  double b_lower,
