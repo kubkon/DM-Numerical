@@ -1,10 +1,21 @@
 from cython_gsl cimport *
 
-from libc.stdlib cimport calloc, free
-from libc.stdio cimport printf
 cimport libc.math as m
 
 import numpy as np
+
+# C struct
+# specifies the minimization system
+ctypedef struct Tmin:
+    int n, # number of bidders
+    int k, # number of polynomial coefficients per bidder
+    int granularity, # grid granularity
+    double b_upper, # upper bound on bids
+    gsl_vector * lower_exts, # gsl_vector of lower extremities
+    gsl_vector * upper_exts, # gsl_vector of upper extremities
+    double f(int, int, double, double, const gsl_vector *,
+             const gsl_vector *, const gsl_vector *) nogil # pointer to objective function
+
 
 cdef double c_cost_function(double low_ext,
                             double b_lower,
@@ -238,14 +249,32 @@ def objective_function(k, granularity, b_lower, b_upper,
 
 
 cdef double min_f(const gsl_vector * v, void * params) nogil:
-    cdef double x, y
+    # Extract minimization system
+    cdef Tmin * P = <Tmin *> params
 
-    x = gsl_vector_get(v, 0)
-    y = gsl_vector_get(v, 1)
+    # Extract lower bound on bids
+    cdef double b_lower = gsl_vector_get(v, 0)
 
-    return x*x + y*y
+    # Extract polynomial coefficients
+    cdef int i
+    cdef int m = P.k * P.n
+    cdef double value
 
-def solve (bids, b_lower, poly_coeffs):
+    cdef gsl_vector * vs
+    vs = gsl_vector_alloc(m)
+
+    for i from 0 <= i < m:
+        value = gsl_vector_get(v, i+1)
+        gsl_vector_set(vs, i, value)
+
+    return P.f(P.k, P.granularity, b_lower, P.b_upper, P.lower_exts, P.upper_exts, vs)
+
+
+def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
+    # Get number of bidders
+    cdef int n = len(lowers)
+    # Get number of polynomial coefficients per bidder
+    cdef int k = len(poly_coeffs) * n
 
     cdef size_t iter = 0
     cdef int max_iter = 100
@@ -256,10 +285,29 @@ def solve (bids, b_lower, poly_coeffs):
     cdef gsl_vector * ss
     cdef gsl_vector * x
 
+    # Initialize struct describing minimization system
+    cdef Tmin P
+    P.k = k
+    P.n = n
+    P.granularity = granularity
+    P.b_upper = b_upper
+
+    cdef gsl_vector * lower_exts
+    lower_exts = gsl_vector_alloc(n)
+    cdef gsl_vector * upper_exts
+    upper_exts = gsl_vector_alloc(n)
+    for i in range(n):
+        gsl_vector_set(lower_exts, i, lowers[i])
+        gsl_vector_set(upper_exts, i, uppers[i])
+    P.lower_exts = lower_exts
+    P.upper_exts = upper_exts
+
+    P.f = c_objective_function
+
     cdef gsl_multimin_function my_func
-    my_func.n = 2
+    my_func.n = k + 1
     my_func.f = &min_f
-    my_func.params = NULL
+    my_func.params = &P
 
     # Starting point (10,10)
     x = gsl_vector_alloc(2)

@@ -41,8 +41,7 @@ b_lower = lowers[1]
 while True:
   if k <= K:
     break
-  bids = np.linspace(b_lower, b_upper, 1000)
-  b_lower, poly_coeffs = solve(bids, b_lower, poly_coeffs)
+  b_lower, poly_coeffs = solve(b_lower, b_upper, lowers, uppers, poly_coeffs)
   k += 1
   for i in range(n):
     poly_coeffs[i] += [1e-6]
