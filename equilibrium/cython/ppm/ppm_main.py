@@ -3,6 +3,7 @@ import numpy as np
 from scipy.stats import uniform
 from functools import reduce
 
+
 def upper_bound_bids(lowers, uppers):
   """Returns an estimate on upper bound on bids.
 
@@ -33,17 +34,20 @@ n = len(lowers)
 
 # set initial conditions for the PPM algorithm
 k = 3
-K = 8
-poly_coeffs = [[1e-2 for j in range(k)] for i in range(n)]
+K = 4
+poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
 b_lower = lowers[1]
 
 # run the PPM algorithm until k <= K
 while True:
-  if k <= K:
+  if k >= K:
     break
+
   b_lower, poly_coeffs = solve(b_lower, b_upper, lowers, uppers, poly_coeffs)
-  k += 1
+
   for i in range(n):
     poly_coeffs[i] += [1e-6]
+
+  k += 1
 
 print("Estimated lower bound on bids: %r" % b_lower)

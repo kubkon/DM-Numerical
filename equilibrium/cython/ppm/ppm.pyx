@@ -4,6 +4,8 @@ cimport libc.math as m
 
 import numpy as np
 
+from libc.stdio cimport printf
+
 # C struct
 # specifies the minimization system
 ctypedef struct Tmin:
@@ -184,11 +186,16 @@ cdef double c_objective_function(int k,
     cdef double summed, t_lower_ext
     cdef gsl_vector * t_v
 
+    cdef int z
+
     for i from 0 <= i < n:
         # Extract vector of polynomial coefficients for
         # bidder i
         v_view = gsl_vector_subvector(vs, i*k, k)
         v = &v_view.vector
+        for z from 0 <= z < k:
+            printf("%f", gsl_vector_get(v, z))
+        printf('\n')
         # Get lower and upper extremities for the current
         # bidder
         lower_ext = gsl_vector_get(lower_exts, i)
@@ -274,16 +281,11 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
     # Get number of bidders
     cdef int n = len(lowers)
     # Get number of polynomial coefficients per bidder
-    cdef int k = len(poly_coeffs) * n
-
-    cdef size_t iter = 0
-    cdef int max_iter = 100
-    cdef int status
-
-    cdef const gsl_multimin_fminimizer_type * T
-    cdef gsl_multimin_fminimizer * s
-    cdef gsl_vector * ss
-    cdef gsl_vector * x
+    cdef int k = len(poly_coeffs)
+    # Flatten polynomial coefficients
+    poly_coeffs_flat = []
+    for p in poly_coeffs:
+        poly_coeffs_flat += p
 
     # Initialize struct describing minimization system
     cdef Tmin P
@@ -296,7 +298,9 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
     lower_exts = gsl_vector_alloc(n)
     cdef gsl_vector * upper_exts
     upper_exts = gsl_vector_alloc(n)
-    for i in range(n):
+
+    cdef int i
+    for i from 0 <= i < n:
         gsl_vector_set(lower_exts, i, lowers[i])
         gsl_vector_set(upper_exts, i, uppers[i])
     P.lower_exts = lower_exts
@@ -305,21 +309,31 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
     P.f = c_objective_function
 
     cdef gsl_multimin_function my_func
-    my_func.n = k + 1
+    my_func.n = n*k + 1
     my_func.f = &min_f
     my_func.params = &P
 
-    # Starting point (10,10)
-    x = gsl_vector_alloc(2)
-    gsl_vector_set(x, 0, 10.0)
-    gsl_vector_set(x, 1, 10.0)
+    cdef size_t iter = 0
+    cdef int max_iter = 100
+    cdef int status
 
+    cdef const gsl_multimin_fminimizer_type * T
+    cdef gsl_multimin_fminimizer * s
+    cdef gsl_vector * ss
+    cdef gsl_vector * x
+
+    # Starting point
+    x = gsl_vector_alloc(my_func.n)
+    gsl_vector_set(x, 0, b_lower)
+    for i from 0 <= i < (my_func.n - 1):
+        gsl_vector_set(x, i+1, poly_coeffs_flat[i])
+    
     # Set initial step size to 0.1
-    ss = gsl_vector_alloc(2)
+    ss = gsl_vector_alloc(my_func.n)
     gsl_vector_set_all(ss, 0.1)
-
+    
     T = gsl_multimin_fminimizer_nmsimplex2
-    s = gsl_multimin_fminimizer_alloc(T, 2)
+    s = gsl_multimin_fminimizer_alloc(T, my_func.n)
 
     gsl_multimin_fminimizer_set(s, &my_func, x, ss)
 
@@ -333,13 +347,13 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
             break
 
         size = gsl_multimin_fminimizer_size(s)
-        status = gsl_multimin_test_size(size, 1e-2)
+        status = gsl_multimin_test_size(size, 1e-6)
 
-        if status == GSL_SUCCESS:
-            print("Minimum found at:\n")
+    b_lower = gsl_vector_get(s.x, 0)
 
-        print("%5d %10.3e %10.3e f() = %7.3f size = %.3f\n" %\
-              (iter, gsl_vector_get (s.x, 0), gsl_vector_get (s.x, 1), s.fval, size))
+    for i from 0 <= i < (my_func.n - 1):
+        poly_coeffs_flat[i] = gsl_vector_get(s.x, i+1)
+    poly_coeffs = [poly_coeffs_flat[j:j+k] for j in range(0, my_func.n - 1, k)]
 
     gsl_multimin_fminimizer_free(s)
     gsl_vector_free(x)
