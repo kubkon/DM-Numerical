@@ -37,18 +37,32 @@ k = 3
 K = 8
 poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
 b_lower = lowers[1] + 1e-3
+size_box = [1e-1 for i in range(k*n + 1)]
 
 # run the PPM algorithm until k >= K
 while True:
-    b_lower, poly_coeffs = solve(b_lower, b_upper, lowers, uppers, poly_coeffs)
+    b_lower, poly_coeffs = solve(b_lower,
+                                 b_upper,
+                                 lowers,
+                                 uppers,
+                                 poly_coeffs,
+                                 size_box=size_box,
+                                 granularity=100)
 
     if k >= K:
         break
 
+    # extend polynomial coefficients by one element
+    # for each bidder
     for i in range(n):
         poly_coeffs[i] += [1e-6]
 
+    # update k
     k += 1
+
+    # update size box
+    size_box = [1e-2 for i in range(k*n + 1)]
+
 
 print("Estimated lower bound on bids: %r" % b_lower)
 print("Coefficients: %s" % poly_coeffs)

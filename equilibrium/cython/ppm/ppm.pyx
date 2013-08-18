@@ -214,13 +214,15 @@ cdef double c_objective_function(int k,
             # Calculate first-order condition at b
             summed = 0
             for l from 0 <= l < n:
+                if l == i:
+                    continue
                 v_view = gsl_vector_subvector(vs, l*k, k)
                 t_v = &v_view.vector
                 t_lower_ext = gsl_vector_get(lower_exts, l)
                 t_cost = c_cost_function(t_lower_ext, b_lower, t_v, b)
                 summed += 1 / (b - t_cost)
 
-            g = deriv - (upper_ext - cost) * (1/(n-1) * summed - 1/(b - cost))
+            g = deriv - (upper_ext - cost) / (n-1) * (summed + (2-n) / (b - cost))
             sums += m.pow(g, 2)
 
         # Add upper boundary condition
@@ -293,7 +295,7 @@ cdef double min_f(const gsl_vector * v, void * params) nogil:
     return min_f_output
 
 
-def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=100):
+def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granularity=100):
     # Get number of bidders
     cdef int n = len(lowers)
     # Get number of polynomial coefficients per bidder
@@ -330,7 +332,7 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=100):
     my_func.params = &P
 
     cdef size_t iterator = 0
-    cdef int max_iter = 1000
+    cdef int max_iter = 100000
     cdef int status
 
     cdef const gsl_multimin_fminimizer_type * T
@@ -344,9 +346,14 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=100):
     for i from 0 <= i < (my_func.n - 1):
         gsl_vector_set(x, i+1, poly_coeffs_flat[i])
     
-    # Set initial step size to 0.1
+    # Set initial step size
     ss = gsl_vector_alloc(my_func.n)
-    gsl_vector_set_all(ss, 0.1)
+    if size_box:
+        for i from 0 <= i < my_func.n:
+            gsl_vector_set(ss, i, size_box[i])
+    else:
+        # If undefined, set to 0.1
+        gsl_vector_set_all(ss, 0.1)
     
     T = gsl_multimin_fminimizer_nmsimplex2
     s = gsl_multimin_fminimizer_alloc(T, my_func.n)
@@ -355,7 +362,7 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=100):
 
     status = GSL_CONTINUE
 
-    while (status == GSL_CONTINUE and iterator <= max_iter):
+    while (status == GSL_CONTINUE and iterator < max_iter):
         iterator += 1
         status = gsl_multimin_fminimizer_iterate(s)
 
