@@ -227,6 +227,8 @@ cdef double c_objective_function(int k,
         cost = c_cost_function(lower_ext, b_lower, v, b_upper)
         sums += granularity * m.pow(b_upper - cost, 2)
 
+    gsl_vector_free(grid)
+
     return sums
 
 def objective_function(k, granularity, b_lower, b_upper,
