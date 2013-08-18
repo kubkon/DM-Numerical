@@ -4,8 +4,6 @@ cimport libc.math as m
 
 import numpy as np
 
-from libc.stdio cimport printf
-
 # C struct
 # specifies the minimization system
 ctypedef struct Tmin:
@@ -39,7 +37,7 @@ cdef double c_cost_function(double low_ext,
 
     for i from 0 <= i < k:
         sums += gsl_vector_get(v, i) * m.pow(b - b_lower, i+1)
-    
+
     return low_ext + sums
 
 def cost_function(low_ext, b_lower, v, b):
@@ -48,7 +46,7 @@ def cost_function(low_ext, b_lower, v, b):
     mainly for internal (testing) purposes. It should not be used
     as a standalone function.
     """
-    cdef double c_low_ext, c_b_lower, c_b
+    cdef double c_low_ext, c_b_lower, c_b, c_cost
     c_low_ext = low_ext
     c_b_lower = b_lower
     c_b = b
@@ -59,7 +57,11 @@ def cost_function(low_ext, b_lower, v, b):
     for i in range(n):
         gsl_vector_set(c_v, i, v[i])
 
-    return c_cost_function(c_low_ext, c_b_lower, c_v, c_b)
+    c_cost = c_cost_function(c_low_ext, c_b_lower, c_v, c_b)
+
+    gsl_vector_free(c_v)
+
+    return c_cost
 
 
 cdef double c_deriv_cost_function(double b_lower,
@@ -88,7 +90,7 @@ def deriv_cost_function(b_lower, v, b):
     mainly for internal (testing) purposes. It should not be used
     as a standalone function.
     """
-    cdef double c_b_lower, c_b
+    cdef double c_b_lower, c_b, c_deriv
     c_b_lower = b_lower
     c_b = b
 
@@ -98,13 +100,17 @@ def deriv_cost_function(b_lower, v, b):
     for i in range(n):
         gsl_vector_set(c_v, i, v[i])
 
-    return c_deriv_cost_function(c_b_lower, c_v, c_b)
+    c_deriv = c_deriv_cost_function(c_b_lower, c_v, c_b)
+
+    gsl_vector_free(c_v)
+
+    return c_deriv
 
 
 cdef gsl_vector * c_linspace(double begin, double end, int granularity) nogil:
     """
     Returns gsl_vector of linearly spaced points such that for each x
-    in the gsl_vector, begin <= x <= end, and for any two points x1, x2
+    in the gsl_vector, begin <= x < end, and for any two points x1, x2
     in the gsl_vector such that x1 < x2, x2 - x1 =
 
     Attributes:
@@ -147,6 +153,8 @@ def linspace(begin, end,  granularity):
     for i from 0 <= i < n:
         output += [gsl_vector_get(v, i)]
 
+    gsl_vector_free(v)
+
     return output
 
 
@@ -183,19 +191,14 @@ cdef double c_objective_function(int k,
     cdef int i, j, l
     cdef gsl_vector_view v_view
     cdef gsl_vector * v
-    cdef double summed, t_lower_ext
+    cdef double summed, t_lower_ext, t_cost
     cdef gsl_vector * t_v
-
-    cdef int z
 
     for i from 0 <= i < n:
         # Extract vector of polynomial coefficients for
         # bidder i
         v_view = gsl_vector_subvector(vs, i*k, k)
         v = &v_view.vector
-        for z from 0 <= z < k:
-            printf("%f", gsl_vector_get(v, z))
-        printf('\n')
         # Get lower and upper extremities for the current
         # bidder
         lower_ext = gsl_vector_get(lower_exts, i)
@@ -214,7 +217,8 @@ cdef double c_objective_function(int k,
                 v_view = gsl_vector_subvector(vs, l*k, k)
                 t_v = &v_view.vector
                 t_lower_ext = gsl_vector_get(lower_exts, l)
-                summed += 1 / (b - c_cost_function(t_lower_ext, b_lower, t_v, b))
+                t_cost = c_cost_function(t_lower_ext, b_lower, t_v, b)
+                summed += 1 / (b - t_cost)
 
             g = deriv - (upper_ext - cost) * (1/(n-1) * summed - 1/(b - cost))
             sums += m.pow(g, 2)
@@ -231,7 +235,7 @@ def objective_function(k, granularity, b_lower, b_upper,
     Python wrapper for c_objective_function.
     """
     cdef int c_k, c_granularity
-    cdef double c_b_lower, c_b_upper
+    cdef double c_b_lower, c_b_upper, c_value
     c_k = k
     c_granularity = granularity
     c_b_lower = b_lower
@@ -250,9 +254,15 @@ def objective_function(k, granularity, b_lower, b_upper,
     for i in range(n):
         gsl_vector_set(c_vs, i, vs[i])
 
-    return c_objective_function(c_k, c_granularity, c_b_lower,
-                                c_b_upper, c_lower_exts, c_upper_exts,
-                                c_vs)
+    c_value = c_objective_function(c_k, c_granularity, c_b_lower,
+                                   c_b_upper, c_lower_exts, c_upper_exts,
+                                   c_vs)
+
+    gsl_vector_free(c_lower_exts)
+    gsl_vector_free(c_upper_exts)
+    gsl_vector_free(c_vs)
+
+    return c_value
 
 
 cdef double min_f(const gsl_vector * v, void * params) nogil:
@@ -265,7 +275,7 @@ cdef double min_f(const gsl_vector * v, void * params) nogil:
     # Extract polynomial coefficients
     cdef int i
     cdef int m = P.k * P.n
-    cdef double value
+    cdef double value, min_f_output
 
     cdef gsl_vector * vs
     vs = gsl_vector_alloc(m)
@@ -274,14 +284,18 @@ cdef double min_f(const gsl_vector * v, void * params) nogil:
         value = gsl_vector_get(v, i+1)
         gsl_vector_set(vs, i, value)
 
-    return P.f(P.k, P.granularity, b_lower, P.b_upper, P.lower_exts, P.upper_exts, vs)
+    min_f_output = P.f(P.k, P.granularity, b_lower, P.b_upper, P.lower_exts, P.upper_exts, vs)
+
+    gsl_vector_free(vs)
+
+    return min_f_output
 
 
-def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
+def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=100):
     # Get number of bidders
     cdef int n = len(lowers)
     # Get number of polynomial coefficients per bidder
-    cdef int k = len(poly_coeffs)
+    cdef int k = len(poly_coeffs[0])
     # Flatten polynomial coefficients
     poly_coeffs_flat = []
     for p in poly_coeffs:
@@ -313,8 +327,8 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
     my_func.f = &min_f
     my_func.params = &P
 
-    cdef size_t iter = 0
-    cdef int max_iter = 100
+    cdef size_t iterator = 0
+    cdef int max_iter = 1000
     cdef int status
 
     cdef const gsl_multimin_fminimizer_type * T
@@ -339,24 +353,27 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, granularity=1000):
 
     status = GSL_CONTINUE
 
-    while (status == GSL_CONTINUE and iter <= max_iter):
-        iter += 1
+    while (status == GSL_CONTINUE and iterator <= max_iter):
+        iterator += 1
         status = gsl_multimin_fminimizer_iterate(s)
 
         if status:
             break
 
         size = gsl_multimin_fminimizer_size(s)
-        status = gsl_multimin_test_size(size, 1e-6)
+        status = gsl_multimin_test_size(size, 1e-8)
 
     b_lower = gsl_vector_get(s.x, 0)
-
+    
     for i from 0 <= i < (my_func.n - 1):
-        poly_coeffs_flat[i] = gsl_vector_get(s.x, i+1)
+        poly_coeffs_flat[i] += gsl_vector_get(s.x, i+1)
+
     poly_coeffs = [poly_coeffs_flat[j:j+k] for j in range(0, my_func.n - 1, k)]
 
     gsl_multimin_fminimizer_free(s)
     gsl_vector_free(x)
     gsl_vector_free(ss)
+    gsl_vector_free(lower_exts)
+    gsl_vector_free(upper_exts)
 
     return (b_lower, poly_coeffs)
