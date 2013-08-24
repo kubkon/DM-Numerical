@@ -1,6 +1,7 @@
 from cython_gsl cimport *
 
-cimport libc.math as m
+from libc.math cimport pow
+from libc.stdio cimport printf
 
 import numpy as np
 
@@ -31,12 +32,12 @@ cdef double c_cost_function(double low_ext,
     v -- gsl_vector of polynomial coefficients
     b -- bid value
     """
-    cdef size_t k = v.size
+    cdef int k = v.size
     cdef int i
     cdef double sums = 0
 
     for i from 0 <= i < k:
-        sums += gsl_vector_get(v, i) * m.pow(b - b_lower, i+1)
+        sums += gsl_vector_get(v, i) * pow(b - b_lower, i+1)
 
     return low_ext + sums
 
@@ -75,12 +76,12 @@ cdef double c_deriv_cost_function(double b_lower,
     v -- gsl_vector of polynomial coefficients
     b -- bid value
     """
-    cdef size_t k = v.size
+    cdef int k = v.size
     cdef int i
     cdef double sums = 0
 
     for i from 0 <= i < k:
-        sums += (i+1) * gsl_vector_get(v, i) * m.pow(b - b_lower, i)
+        sums += (i+1) * gsl_vector_get(v, i) * pow(b - b_lower, i)
 
     return sums
 
@@ -223,11 +224,11 @@ cdef double c_objective_function(int k,
                 summed += 1 / (b - t_cost)
 
             g = deriv - (upper_ext - cost) / (n-1) * (summed + (2-n) / (b - cost))
-            sums += m.pow(g, 2)
+            sums += pow(g, 2) / granularity
 
         # Add upper boundary condition
         cost = c_cost_function(lower_ext, b_lower, v, b_upper)
-        sums += granularity * m.pow(b_upper - cost, 2)
+        sums += pow(b_upper - cost, 2)
 
     gsl_vector_free(grid)
 
@@ -331,7 +332,7 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granula
     my_func.f = &min_f
     my_func.params = &P
 
-    cdef size_t iterator = 0
+    cdef int iterator = 0
     cdef int max_iter = 100000
     cdef int status
 
@@ -362,6 +363,7 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granula
 
     status = GSL_CONTINUE
 
+    # Minimize
     while (status == GSL_CONTINUE and iterator < max_iter):
         iterator += 1
         status = gsl_multimin_fminimizer_iterate(s)
@@ -371,6 +373,11 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granula
 
         size = gsl_multimin_fminimizer_size(s)
         status = gsl_multimin_test_size(size, 1e-8)
+
+        printf("%5d %.5f %5.10f %.10f\n", iterator,\
+                gsl_vector_get(s.x, 0),\
+                s.fval,\
+                size)
 
     b_lower = gsl_vector_get(s.x, 0)
     
@@ -385,4 +392,4 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granula
     gsl_vector_free(lower_exts)
     gsl_vector_free(upper_exts)
 
-    return (b_lower, poly_coeffs)
+    return b_lower, poly_coeffs

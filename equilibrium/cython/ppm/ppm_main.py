@@ -22,8 +22,8 @@ def upper_bound_bids(lowers, uppers):
     return vals[np.argmax(tabulated)]
 
 # set the scenario
-w = 0.75
-reputations = [0.25, 0.5, 0.75]
+w = 0.85
+reputations = [0.2, 0.4, 0.6, 0.8]
 # compute an array of lower and upper extremities
 lowers = np.array([(1-w)*r for r in reputations])
 uppers = np.array([(1-w)*r + w for r in reputations])
@@ -34,7 +34,7 @@ n = len(lowers)
 
 # set initial conditions for the PPM algorithm
 k = 3
-K = 8
+K = 3
 poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
 b_lower = lowers[1] + 1e-3
 size_box = [1e-1 for i in range(k*n + 1)]
@@ -49,20 +49,21 @@ while True:
                                  size_box=size_box,
                                  granularity=100)
 
+    # print(b_lower, poly_coeffs)
+
     if k >= K:
         break
 
     # extend polynomial coefficients by one element
     # for each bidder
     for i in range(n):
-        poly_coeffs[i] += [1e-6]
+        poly_coeffs[i].append(1e-6)
 
     # update k
     k += 1
 
     # update size box
-    size_box = [1e-2 for i in range(k*n + 1)]
-
+    size_box = [1e-2 for i in range(n*k + 1)]
 
 print("Estimated lower bound on bids: %r" % b_lower)
 print("Coefficients: %s" % poly_coeffs)
