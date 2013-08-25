@@ -194,6 +194,7 @@ cdef double c_objective_function(int k,
     cdef gsl_vector * v
     cdef double summed, t_lower_ext, t_cost
     cdef gsl_vector * t_v
+    cdef gsl_vector_view t_v_view
 
     for i from 0 <= i < n:
         # Extract vector of polynomial coefficients for
@@ -215,20 +216,18 @@ cdef double c_objective_function(int k,
             # Calculate first-order condition at b
             summed = 0
             for l from 0 <= l < n:
-                if l == i:
-                    continue
-                v_view = gsl_vector_subvector(vs, l*k, k)
-                t_v = &v_view.vector
+                t_v_view = gsl_vector_subvector(vs, l*k, k)
+                t_v = &t_v_view.vector
                 t_lower_ext = gsl_vector_get(lower_exts, l)
                 t_cost = c_cost_function(t_lower_ext, b_lower, t_v, b)
                 summed += 1 / (b - t_cost)
 
-            g = deriv - (upper_ext - cost) / (n-1) * (summed + (2-n) / (b - cost))
-            sums += pow(g, 2) / granularity
+            g = deriv - (upper_ext - cost) * (summed / (n-1) - 1 / (b - cost))
+            sums += pow(g, 2)
 
         # Add upper boundary condition
         cost = c_cost_function(lower_ext, b_lower, v, b_upper)
-        sums += pow(b_upper - cost, 2)
+        sums += granularity * pow(b_upper - cost, 2)
 
     gsl_vector_free(grid)
 
@@ -374,15 +373,19 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granula
         size = gsl_multimin_fminimizer_size(s)
         status = gsl_multimin_test_size(size, 1e-8)
 
-        printf("%5d %.5f %5.10f %.10f\n", iterator,\
-                gsl_vector_get(s.x, 0),\
-                s.fval,\
-                size)
+        # printf("%5d %5.15f %.15f %.10f ", iterator,\
+        #         s.fval,\
+        #         size,\
+        #         gsl_vector_get(s.x, 0))
+
+        # for i from 1 <= i < my_func.n:
+        #     printf("%.10f ", gsl_vector_get(s.x, i))
+        # printf("\n")
 
     b_lower = gsl_vector_get(s.x, 0)
     
     for i from 0 <= i < (my_func.n - 1):
-        poly_coeffs_flat[i] += gsl_vector_get(s.x, i+1)
+        poly_coeffs_flat[i] = gsl_vector_get(s.x, i+1)
 
     poly_coeffs = [poly_coeffs_flat[j:j+k] for j in range(0, my_func.n - 1, k)]
 

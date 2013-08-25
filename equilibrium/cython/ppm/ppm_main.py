@@ -22,8 +22,8 @@ def upper_bound_bids(lowers, uppers):
     return vals[np.argmax(tabulated)]
 
 # set the scenario
-w = 0.85
-reputations = [0.2, 0.4, 0.6, 0.8]
+w = 0.75
+reputations = [0.25, 0.5, 0.75]
 # compute an array of lower and upper extremities
 lowers = np.array([(1-w)*r for r in reputations])
 uppers = np.array([(1-w)*r + w for r in reputations])
@@ -34,7 +34,7 @@ n = len(lowers)
 
 # set initial conditions for the PPM algorithm
 k = 3
-K = 3
+K = 8
 poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
 b_lower = lowers[1] + 1e-3
 size_box = [1e-1 for i in range(k*n + 1)]
@@ -48,8 +48,6 @@ while True:
                                  poly_coeffs,
                                  size_box=size_box,
                                  granularity=100)
-
-    # print(b_lower, poly_coeffs)
 
     if k >= K:
         break
