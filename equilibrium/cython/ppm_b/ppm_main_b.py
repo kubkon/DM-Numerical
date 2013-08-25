@@ -12,10 +12,10 @@ n = len(params)
 
 # set initial conditions for the PPM algorithm
 k = 4
-K = 4
+K = 8
 poly_coeffs = [[1e-1 for i in range(k)] for j in range(n)]
-b_lower = support[0] + 2
-size_box = [1e-4 for i in range(k*n + 1)]
+b_lower = 5.0
+size_box = [1e-1 for i in range(k*n + 1)]
 
 # run the PPM algorithm until k >= K
 while True:
@@ -24,7 +24,7 @@ while True:
                                  params,
                                  poly_coeffs,
                                  size_box=size_box,
-                                 granularity=10)
+                                 granularity=100)
 
     if k >= K:
         break

@@ -39,10 +39,11 @@ cdef double normal_pdf(NormalParams params, double * support, double x) nogil:
     cdef double mu = params.mu
     cdef double sigma = params.sigma
     cdef double pi = 3.14159265
-    # if support[0] < x and x < support[1]:
-    return 1.0 / sqrt(2 * pi * pow(sigma,2)) * exp(- pow(x - mu, 2) / 2*pow(sigma,2))
-    # else:
-        # return 0.0
+    # printf("normal_pdf called with x=%f\n", x)
+    if support[0] <= x and x <= support[1]:
+        return 1.0 / sqrt(2 * pi * pow(sigma,2)) * exp(- pow(x - mu, 2) / 2*pow(sigma,2))
+    else:
+        return 1e-6
 
 
 cdef double c_cost_function(double b_lower,
@@ -61,7 +62,10 @@ cdef double c_cost_function(double b_lower,
     cdef int i
     cdef double sums = 0
 
-    for i from 0 <= i < k:
+    # Case i in {0}
+    sums += gsl_vector_get(v, 0)
+    # Remaining cases
+    for i from 1 <= i < k:
         sums += gsl_vector_get(v, i) * pow(b - b_lower, i)
 
     return b_lower + sums
@@ -104,7 +108,10 @@ cdef double c_deriv_cost_function(double b_lower,
     cdef int i
     cdef double sums = 0
 
-    for i from 0 <= i < k:
+    # Cases i in {0, 1}
+    sums += gsl_vector_get(v, 1)
+    # Remaining cases
+    for i from 2 <= i < k:
         sums += i * gsl_vector_get(v, i) * pow(b - b_lower, i-1)
 
     return sums
@@ -235,8 +242,8 @@ cdef double c_objective_function(int n,
             cost = c_cost_function(b_lower, v, b)
             # Calculate probabilities for bidder i
             cdf = normal_cdf(norm_params, support, cost)
-            pdf = normal_pdf(norm_params, support, deriv)
-            printf("b=%f cdf=%f pdf=%f\n", b, cdf, pdf)
+            pdf = normal_pdf(norm_params, support, cost)
+            # printf("b=%f cdf=%f pdf=%f\n", b, cdf, pdf)
             prob = (1 - cdf) / pdf
             # Calculate first-order condition at b
             summed = 0
@@ -366,6 +373,12 @@ def solve (b_lower, support, params, poly_coeffs, size_box=None, granularity=100
 
         size = gsl_multimin_fminimizer_size(s)
         status = gsl_multimin_test_size(size, 1e-8)
+
+        printf("%5d %.5f %5.10f %.10f\n",\
+                iterator,\
+                gsl_vector_get(s.x, 0),\
+                s.fval,\
+                size)
 
     b_lower = gsl_vector_get(s.x, 0)
     
