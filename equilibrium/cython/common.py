@@ -11,11 +11,18 @@ def upper_bound_bids(lowers, uppers):
     uppers -- array of upper extremities
     """
     # tabulate the range of permissible values
-    vals = np.linspace(uppers[0], uppers[1], 10000)
-    tabulated = []
+    num = 10000
+    vals = np.linspace(uppers[0], uppers[1], num)
+    tabulated = np.empty(num, dtype=np.float)
+    n = lowers.size
+
     # solve the optimization problem in Eq. (1.8) in the thesis
-    for v in vals:
-        probs = [1-uniform(loc=l, scale=(u-l)).cdf(v) for l, u in zip(lowers[1:], uppers[1:])]
-        tabulated += [(v - uppers[0]) * reduce(lambda p,r: p*r, probs, 1)]
-    tabulated = np.array(tabulated)
+    for i in np.arange(num):
+        v = vals[i]
+        probs = 1
+        for j in np.arange(1, n):
+            l, u = lowers[j], uppers[j]
+            probs *= 1 - uniform(loc=l, scale=(u-l)).cdf(v)
+        tabulated[i] = (v - uppers[0]) * probs
+
     return vals[np.argmax(tabulated)]
