@@ -224,6 +224,7 @@ cdef double c_objective_function(int n,
     cdef gsl_vector * v
     cdef double summed, t_cost
     cdef gsl_vector * t_v
+    cdef gsl_vector_view t_v_view
 
     for i from 0 <= i < n:
         # Extract vector of polynomial coefficients for
@@ -250,8 +251,8 @@ cdef double c_objective_function(int n,
             for l from 0 <= l < n:
                 if l == i:
                     continue
-                v_view = gsl_vector_subvector(vs, l*k, k)
-                t_v = &v_view.vector
+                t_v_view = gsl_vector_subvector(vs, l*k, k)
+                t_v = &t_v_view.vector
                 t_cost = c_cost_function(b_lower, t_v, b)
                 summed += 1 / (b - t_cost)
 
@@ -383,7 +384,7 @@ def solve (b_lower, support, params, poly_coeffs, size_box=None, granularity=100
     b_lower = gsl_vector_get(s.x, 0)
     
     for i from 0 <= i < (my_func.n - 1):
-        poly_coeffs_flat[i] += gsl_vector_get(s.x, i+1)
+        poly_coeffs_flat[i] = gsl_vector_get(s.x, i+1)
 
     poly_coeffs = [poly_coeffs_flat[j:j+k] for j in range(0, my_func.n - 1, k)]
 

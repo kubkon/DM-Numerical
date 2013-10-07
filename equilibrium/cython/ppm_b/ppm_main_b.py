@@ -11,11 +11,11 @@ params = [{'mu': 4.0, 'sigma': 1.5},
 n = len(params)
 
 # set initial conditions for the PPM algorithm
-k = 4
-K = 8
-poly_coeffs = [[1e-1 for i in range(k)] for j in range(n)]
-b_lower = 5.0
-size_box = [1e-1 for i in range(k*n + 1)]
+k = 2
+K = 4
+poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
+b_lower = support[0]
+size_box = [1.0 for i in range(k*n + 1)]
 
 # run the PPM algorithm until k >= K
 while True:
@@ -43,3 +43,13 @@ while True:
 
 print("Estimated lower bound on bids: %r" % b_lower)
 print("Coefficients: %s" % poly_coeffs)
+
+# save the results in a file
+with open('ppm_b.out', 'wt') as f:
+  labels = ['n', 'b_lower', 'b_upper'] + ['cs_{}'.format(i) for i in range(n)]
+  labels = ' '.join(labels)
+  values = [n, b_lower, support[1]] + [c for c in poly_coeffs]
+  values = ' '.join(map(lambda x: repr(x).replace(' ', ''), values))
+  f.write(labels)
+  f.write('\n')
+  f.write(values)
