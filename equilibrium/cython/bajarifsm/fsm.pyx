@@ -1,9 +1,10 @@
 from cython_gsl cimport *
 from libc.stdlib cimport calloc, free
 from libc.math cimport exp, sqrt, pow, erf
+
 import numpy as np
 
-# struct describing truncated normal distribution
+# struct describing normal distribution
 ctypedef struct NormalParams:
   double mu
   double sigma

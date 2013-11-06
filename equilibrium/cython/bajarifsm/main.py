@@ -1,6 +1,6 @@
 import csv
 
-from fsm_b import solve
+from .bajarifsm import solve
 import numpy as np
 
 # set the scenario
@@ -45,7 +45,7 @@ while high - low > epsilon:
 print("Estimated lower bound on bids: %r" % guess)
 
 # save the results in a file
-with open('fsm_b.out', 'wt') as f:
+with open('fsm.out', 'wt') as f:
   writer = csv.writer(f)
   labels = ['bids'] + ['costs_{}'.format(i) for i in range(n)]
   writer.writerow(labels)
