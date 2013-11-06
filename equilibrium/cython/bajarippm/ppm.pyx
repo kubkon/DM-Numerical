@@ -2,12 +2,11 @@ from cython_gsl cimport *
 
 from libc.stdlib cimport calloc, free
 from libc.math cimport exp, sqrt, pow, erf
-from libc.stdio cimport printf
 
 import numpy as np
 
 # C structs
-# describes truncated normal distribution
+# describes normal distribution
 ctypedef struct NormalParams:
     double mu
     double sigma
@@ -22,29 +21,16 @@ ctypedef struct Tmin:
     double f(int, int, int, double, const NormalParams *,
              const double *, const gsl_vector *) nogil # pointer to objective function
 
+cdef double normal_cdf(NormalParams params, double x) nogil:
+  cdef double mu = params.mu
+  cdef double sigma = params.sigma
+  return 0.5 * (1 + erf((x - mu) / (sigma * sqrt(2))))
 
-cdef double normal_cdf(NormalParams params, double * support, double x) nogil:
-    cdef double mu = params.mu
-    cdef double sigma = params.sigma
-    cdef double eps = (x - mu) / sigma
-    cdef double eps_erf = (eps - mu) / sqrt(2 * pow(sigma,2))
-    cdef double alpha = (support[0] - mu) / sigma
-    cdef double alpha_erf = (alpha - mu) / sqrt(2 * pow(sigma,2))
-    cdef double beta = (support[1] - mu) / sigma
-    cdef double beta_erf = (beta - mu) / sqrt(2 * pow(sigma,2))
-    return (erf(eps_erf) - erf(alpha_erf)) / (erf(beta_erf) - erf(alpha_erf))
-
-
-cdef double normal_pdf(NormalParams params, double * support, double x) nogil:
-    cdef double mu = params.mu
-    cdef double sigma = params.sigma
-    cdef double pi = 3.14159265
-    # printf("normal_pdf called with x=%f\n", x)
-    if support[0] <= x and x <= support[1]:
-        return 1.0 / sqrt(2 * pi * pow(sigma,2)) * exp(- pow(x - mu, 2) / 2*pow(sigma,2))
-    else:
-        return 1e-6
-
+cdef double normal_pdf(NormalParams params, double x) nogil:
+  cdef double mu = params.mu
+  cdef double sigma = params.sigma
+  cdef double pi = 3.14159265
+  return exp(- pow(x - mu, 2) / (2 * pow(sigma,2))) / (sqrt(2 * pi) * sigma)
 
 cdef double c_cost_function(double b_lower,
                             const gsl_vector * v,
@@ -242,8 +228,8 @@ cdef double c_objective_function(int n,
             # Get cost value
             cost = c_cost_function(b_lower, v, b)
             # Calculate probabilities for bidder i
-            cdf = normal_cdf(norm_params, support, cost)
-            pdf = normal_pdf(norm_params, support, cost)
+            cdf = normal_cdf(norm_params, cost)
+            pdf = normal_pdf(norm_params, cost)
             # printf("b=%f cdf=%f pdf=%f\n", b, cdf, pdf)
             prob = (1 - cdf) / pdf
             # Calculate first-order condition at b

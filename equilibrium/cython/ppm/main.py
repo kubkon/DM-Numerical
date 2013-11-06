@@ -6,14 +6,19 @@ from .ppm import solve
 
 # set the scenario
 w = 0.85
-reputations = [0.2, 0.4, 0.6, 0.8]
+reputations = np.array([0.2, 0.4, 0.6, 0.8], dtype=np.float)
+n = reputations.size
+
 # compute an array of lower and upper extremities
-lowers = np.array([(1-w)*r for r in reputations])
-uppers = np.array([(1-w)*r + w for r in reputations])
+lowers = np.empty(n, dtype=np.float)
+uppers = np.empty(n, dtype=np.float)
+for i in np.arange(n):
+  r = reputations[i]
+  lowers[i] = (1-w) * r
+  uppers[i] = (1-w) * r + w
+
 # estimate the upper bound on bids
 b_upper = upper_bound_bids(lowers, uppers)
-# infer number of bidders
-n = len(lowers)
 
 # set initial conditions for the PPM algorithm
 k = 3

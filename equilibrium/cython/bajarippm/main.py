@@ -1,4 +1,4 @@
-from ppm_b import solve
+from bajarippm import solve
 
 
 # set the scenario
@@ -45,7 +45,7 @@ print("Estimated lower bound on bids: %r" % b_lower)
 print("Coefficients: %s" % poly_coeffs)
 
 # save the results in a file
-with open('ppm_b.out', 'wt') as f:
+with open('ppm.out', 'wt') as f:
   labels = ['n', 'b_lower', 'b_upper'] + ['cs_{}'.format(i) for i in range(n)]
   labels = ' '.join(labels)
   values = [n, b_lower, support[1]] + [c for c in poly_coeffs]

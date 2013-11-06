@@ -1,6 +1,6 @@
 import csv
 
-from .bajarifsm import solve
+from bajarifsm import solve
 import numpy as np
 
 # set the scenario
