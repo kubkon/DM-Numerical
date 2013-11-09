@@ -1,12 +1,12 @@
 import pytest
 import numpy as np
 
-from ppm_b import cost_function, deriv_cost_function, linspace
+from ppm_b import p_cost_function, p_deriv_cost_function, p_linspace
 
 
 def test_cost_function():
     """
-    Tests cost function, c_cost_function.
+    Tests cost function.
     """
     # Setup scenario
     b_lower = 0.35
@@ -21,7 +21,7 @@ def test_cost_function():
     expected = b_lower + np.dot(alphas, bs)
 
     # Calculate actual result
-    actual = cost_function(b_lower, v, b)
+    actual = p_cost_function(b_lower, v, b)
     
     # Compare
     assert expected == actual
@@ -29,7 +29,7 @@ def test_cost_function():
 
 def test_deriv_cost_function():
     """
-    Tests derivative of the cost function, c_deriv_cost_function.
+    Tests derivative of the cost function.
     """
     # Setup scenario
     b_lower = 0.35
@@ -45,7 +45,7 @@ def test_deriv_cost_function():
     expected = np.dot(alphas, bs)
 
     # Calculate actual result
-    actual = deriv_cost_function(b_lower, v, b)
+    actual = p_deriv_cost_function(b_lower, v, b)
     
     # Compare
     assert expected == actual
@@ -53,7 +53,7 @@ def test_deriv_cost_function():
 
 def test_linspace():
     """
-    Tests linspace function, c_linspace.
+    Tests linspace function.
     """
     # Setup scenario
     begin = 0.0
@@ -64,7 +64,7 @@ def test_linspace():
     expected = np.linspace(begin, end, granularity)
 
     # Calculate actual result
-    actual = linspace(begin, end, granularity)
+    actual = p_linspace(begin, end, granularity)
 
     # Compare
     for e, a in zip(expected, actual):

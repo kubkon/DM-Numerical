@@ -11,11 +11,11 @@ params = [{'mu': 4.0, 'sigma': 1.5},
 n = len(params)
 
 # set initial conditions for the PPM algorithm
-k = 2
+k = 3
 K = 4
 poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
 b_lower = support[0]
-size_box = [1.0 for i in range(k*n + 1)]
+size_box = [1e-1 for i in range(k*n + 1)]
 
 # run the PPM algorithm until k >= K
 while True:

@@ -37,7 +37,7 @@ for i in range(n):
 
 # Define inverse bid function
 def cost_func(b_lower, cs, b):
-  return b_lower + sum([c*(b-b_lower)**i for c,i in zip(cs, range(len(cs)))])
+  return b_lower - sum([c*(b-b_lower)**i for c,i in zip(cs, range(len(cs)))])
 
 # Compute bids and costs
 bids = np.linspace(b_lower, b_upper, 10000)

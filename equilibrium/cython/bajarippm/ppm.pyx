@@ -22,19 +22,20 @@ ctypedef struct Tmin:
              const double *, const gsl_vector *) nogil # pointer to objective function
 
 cdef double normal_cdf(NormalParams params, double x) nogil:
-  cdef double mu = params.mu
-  cdef double sigma = params.sigma
-  return 0.5 * (1 + erf((x - mu) / (sigma * sqrt(2))))
+    cdef double mu = params.mu
+    cdef double sigma = params.sigma
+    return 0.5 * (1 + erf((x - mu) / (sigma * sqrt(2))))
 
 cdef double normal_pdf(NormalParams params, double x) nogil:
-  cdef double mu = params.mu
-  cdef double sigma = params.sigma
-  cdef double pi = 3.14159265
-  return exp(- pow(x - mu, 2) / (2 * pow(sigma,2))) / (sqrt(2 * pi) * sigma)
+    cdef double mu = params.mu
+    cdef double sigma = params.sigma
+    cdef double pi = 3.14159265
+    return exp(- pow(x - mu, 2) / (2 * pow(sigma,2))) / (sqrt(2 * pi) * sigma)
 
-cdef double c_cost_function(double b_lower,
-                            const gsl_vector * v,
-                            double b) nogil:
+
+cdef double cost_function(double b_lower,
+                          const gsl_vector * v,
+                          double b) nogil:
     """
     Defines polynomial function that approximates equilibrium cost
     function for each bidder.
@@ -46,19 +47,20 @@ cdef double c_cost_function(double b_lower,
     """
     cdef size_t k = v.size
     cdef int i
+    cdef double diff = b - b_lower
     cdef double sums = 0
 
     # Case i in {0}
     sums += gsl_vector_get(v, 0)
     # Remaining cases
     for i from 1 <= i < k:
-        sums += gsl_vector_get(v, i) * pow(b - b_lower, i)
+        sums += gsl_vector_get(v, i) * pow(diff, i)
 
-    return b_lower + sums
+    return b_lower - sums
 
-def cost_function(b_lower, v, b):
+def p_cost_function(b_lower, v, b):
     """
-    Python wrapper for c_cost_function. This function exists
+    Python wrapper for cost_function. This function exists
     mainly for internal (testing) purposes. It should not be used
     as a standalone function.
     """
@@ -72,18 +74,18 @@ def cost_function(b_lower, v, b):
     for i in range(n):
         gsl_vector_set(c_v, i, v[i])
 
-    c_cost = c_cost_function(c_b_lower, c_v, c_b)
+    c_cost = cost_function(c_b_lower, c_v, c_b)
 
     gsl_vector_free(c_v)
 
     return c_cost
 
 
-cdef double c_deriv_cost_function(double b_lower,
-                                  const gsl_vector * v,
-                                  double b) nogil:
+cdef double deriv_cost_function(double b_lower,
+                                const gsl_vector * v,
+                                double b) nogil:
     """
-    Defines derivative of the polynomial cost function, c_cost_function.
+    Defines derivative of the polynomial cost function, cost_function.
 
     Arguments:
     b_lower -- lower bound on bids
@@ -92,19 +94,20 @@ cdef double c_deriv_cost_function(double b_lower,
     """
     cdef size_t k = v.size
     cdef int i
+    cdef double diff = b - b_lower
     cdef double sums = 0
 
     # Cases i in {0, 1}
     sums += gsl_vector_get(v, 1)
     # Remaining cases
     for i from 2 <= i < k:
-        sums += i * gsl_vector_get(v, i) * pow(b - b_lower, i-1)
+        sums += i * gsl_vector_get(v, i) * pow(diff, i-1)
 
-    return sums
+    return -1 * sums
 
-def deriv_cost_function(b_lower, v, b):
+def p_deriv_cost_function(b_lower, v, b):
     """
-    Python wrapper for c_deriv_cost_function. This function exists
+    Python wrapper for deriv_cost_function. This function exists
     mainly for internal (testing) purposes. It should not be used
     as a standalone function.
     """
@@ -118,14 +121,14 @@ def deriv_cost_function(b_lower, v, b):
     for i in range(n):
         gsl_vector_set(c_v, i, v[i])
 
-    c_deriv = c_deriv_cost_function(c_b_lower, c_v, c_b)
+    c_deriv = deriv_cost_function(c_b_lower, c_v, c_b)
 
     gsl_vector_free(c_v)
 
     return c_deriv
 
 
-cdef gsl_vector * c_linspace(double begin, double end, int granularity) nogil:
+cdef gsl_vector * linspace(double begin, double end, int granularity) nogil:
     """
     Returns gsl_vector of linearly spaced points such that for each x
     in the gsl_vector, begin <= x < end, and for any two points x1, x2
@@ -150,9 +153,9 @@ cdef gsl_vector * c_linspace(double begin, double end, int granularity) nogil:
 
     return v
 
-def linspace(begin, end,  granularity):
+def p_linspace(begin, end,  granularity):
     """
-    Python wrapper for c_linspace. This function exists mainly for internal
+    Python wrapper for linspace. This function exists mainly for internal
     (testing) purposes. It should not be used as a standalone function.
     """
     cdef double c_begin, c_end
@@ -162,7 +165,7 @@ def linspace(begin, end,  granularity):
     c_granularity = granularity
 
     cdef gsl_vector * v
-    v = c_linspace(c_begin, c_end, c_granularity)
+    v = linspace(c_begin, c_end, c_granularity)
 
     cdef int n = v.size
     cdef int i
@@ -176,13 +179,13 @@ def linspace(begin, end,  granularity):
     return output
 
 
-cdef double c_objective_function(int n,
-                                 int k,
-                                 int granularity,
-                                 double b_lower,
-                                 const NormalParams * normal_params,
-                                 const double * support,
-                                 const gsl_vector * vs) nogil:
+cdef double objective_function(int n,
+                               int k,
+                               int granularity,
+                               double b_lower,
+                               const NormalParams * normal_params,
+                               const double * support,
+                               const gsl_vector * vs) nogil:
     """
     Defines objective function for the nonlinear minimization problem.
 
@@ -198,7 +201,7 @@ cdef double c_objective_function(int n,
     # Generate grid of linearly spaced points
     cdef gsl_vector * grid
     cdef double b_upper = support[1]
-    grid = c_linspace(b_lower, b_upper, granularity)
+    grid = linspace(b_lower, b_upper, granularity)
 
     # Compute first-order condition function over the grid
     # for each bidder
@@ -224,12 +227,19 @@ cdef double c_objective_function(int n,
             # Get bid value
             b = gsl_vector_get(grid, j)
             # Get cost derivative value
-            deriv = c_deriv_cost_function(b_lower, v, b)
+            deriv = deriv_cost_function(b_lower, v, b)
             # Get cost value
-            cost = c_cost_function(b_lower, v, b)
+            cost = cost_function(b_lower, v, b)
             # Calculate probabilities for bidder i
+            # if 2 < cost and cost < 8:
             cdf = normal_cdf(norm_params, cost)
             pdf = normal_pdf(norm_params, cost)
+            # elif cost <= 2:
+            #     cdf = normal_cdf(norm_params, 2)
+            #     pdf = normal_pdf(norm_params, 2)
+            # else:
+            #     cdf = normal_cdf(norm_params, 8)
+            #     pdf = normal_pdf(norm_params, 8)
             # printf("b=%f cdf=%f pdf=%f\n", b, cdf, pdf)
             prob = (1 - cdf) / pdf
             # Calculate first-order condition at b
@@ -239,18 +249,18 @@ cdef double c_objective_function(int n,
                     continue
                 t_v_view = gsl_vector_subvector(vs, l*k, k)
                 t_v = &t_v_view.vector
-                t_cost = c_cost_function(b_lower, t_v, b)
-                summed += 1 / (b - t_cost)
+                t_cost = cost_function(b_lower, t_v, b)
+                summed += (1 / (b - t_cost))
 
-            g = deriv - prob / (n-1) * (summed + (2-n) / (b - cost))
+            g = deriv - (prob / (n-1)) * (summed + (2-n) / (b - cost))
             sums += pow(g, 2)
 
         # Add lower boundary condition
-        cost = c_cost_function(b_lower, v, b_lower)
+        cost = cost_function(b_lower, v, b_lower)
         sums += granularity * pow(support[0] - cost, 2)
 
         # Add upper boundary condition
-        cost = c_cost_function(b_lower, v, b_upper)
+        cost = cost_function(b_lower, v, b_upper)
         sums += granularity * pow(b_upper - cost, 2)
 
     gsl_vector_free(grid)
@@ -299,7 +309,7 @@ def solve (b_lower, support, params, poly_coeffs, size_box=None, granularity=100
     P.k = k
     P.n = n
     P.granularity = granularity
-    P.f = c_objective_function
+    P.f = objective_function
     
     cdef NormalParams * normal_params
     normal_params = <NormalParams *> calloc(n, sizeof(NormalParams))
