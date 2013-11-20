@@ -5,12 +5,12 @@ import numpy as np
 import bajari.fsm.fsm_internal as fsm_internal
 
 
-def solve(support, params):
+def solve(support, params, granularity=10000):
     # set initial conditions for the FSM algorithm
     low = support[0]
     high = support[1]
     epsilon = 1e-6
-    num = 1000
+    num = granularity
     n = len(params)
     cond1 = np.empty(num, dtype=np.bool)
     cond2 = np.empty(num, dtype=np.bool)

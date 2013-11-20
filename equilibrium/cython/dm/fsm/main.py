@@ -6,7 +6,7 @@ from dm.common import upper_bound_bids
 import dm.fsm.fsm_internal as fsm_internal
 
 
-def solve(w, reputations):
+def solve(w, reputations, granularity=10000):
     # infer number of bidders
     n = reputations.size
 
@@ -24,7 +24,7 @@ def solve(w, reputations):
     low = lowers[1]
     high = b_upper
     epsilon = 1e-6
-    num = 10000
+    num = granularity
     cond1 = np.empty(num, dtype=np.bool)
     cond2 = np.empty(num, dtype=np.bool)
     cond3 = np.empty(num-1, dtype=np.bool)
