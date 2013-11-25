@@ -33,7 +33,7 @@ def estimate_winning_probs(costs, func, params):
 
 
 # set the scenario
-w = 0.7
+w = 0.5
 reputations = np.array([0.25, 0.75], dtype=np.float)
 n = reputations.size
 
@@ -50,7 +50,7 @@ support = [lowers[0], uppers[1]]
 params = []
 
 for i in np.arange(n):
-    mu = lowers[i] + w / 2
+    mu = lowers[i] + w / 4
     sigma = w / 4
     params.append({'mu': mu, 'sigma': sigma})
 
