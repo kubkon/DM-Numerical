@@ -70,7 +70,7 @@ if __name__ == "__main__":
     with open('ppm.out', 'wt') as f:
         labels = ['w', 'reps', 'b_lower', 'b_upper'] + ['cs_{}'.format(i) for i in range(n)]
         labels = ' '.join(labels)
-        values = [w, reputations, b_lower, b_upper] + [c for c in poly_coeffs]
+        values = [w, reputations.tolist(), b_lower, b_upper] + [c for c in poly_coeffs]
         values = ' '.join(map(lambda x: repr(x).replace(' ', ''), values))
         f.write(labels)
         f.write('\n')

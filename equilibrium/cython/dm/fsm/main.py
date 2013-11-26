@@ -74,7 +74,7 @@ if __name__ == "__main__":
     with open('fsm.out', 'wt') as f:
         labels = ['w', 'reps', 'bids'] + ['costs_{}'.format(i) for i in range(n)]
         labels = ' '.join(labels)
-        values = [w, reputations, bids.tolist()] + [c.tolist() for c in costs]
+        values = [w, reputations.tolist(), bids.tolist()] + [c.tolist() for c in costs]
         values = ' '.join(map(lambda x: repr(x).replace(' ', ''), values))
         f.write(labels)
         f.write('\n')
