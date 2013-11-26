@@ -1,4 +1,5 @@
 import argparse
+import ast
 import csv
 from itertools import cycle, chain
 from functools import partial
@@ -34,8 +35,8 @@ with open(file_name, 'rt') as f:
             data_in[key] = row[key]
 
 # Parse data common to FSM and PPM methods
-w = float(data_in['w'])
-reps = [float(r.replace("[", "").replace("]", "")) for r in data_in['reps'].split(',')]
+w = ast.literal_eval(data_in['w'])
+reps = ast.literal_eval(data_in['reps'])
 n = len(reps)
 
 # Estimate cost support bounds
@@ -47,25 +48,12 @@ b_upper = upper_bound_bids(lower_extremities, upper_extremities)
 
 # Parse the rest of the data
 try:
-  bids = [float(b.replace("[","").replace("]","")) for b in data_in['bids'].split(',')]
-  costs = []
-  
-  for i in range(n):
-    label = 'costs_{}'.format(i)
-    costs.append([float(c.replace("[","").replace("]","")) for c in data_in[label].split(',')])
-
-  # Convert to numpy arrays
-  costs = np.array(costs)
-  bids = np.array(bids)
+  bids = np.array(ast.literal_eval(data_in['bids']))
+  costs = np.array([ast.literal_eval(data_in['costs_{}'.format(i)]) for i in range(n)])
 
 except KeyError:
-  bs = [float(data_in['b_lower']), float(data_in['b_upper'])]
-  css = []
-
-  for i in range(n):
-    label = 'cs_{}'.format(i)
-    cs = [float(c.replace("[","").replace("]","")) for c in data_in[label].split(',')]
-    css += [cs]
+  bs = [ast.literal_eval(data_in['b_lower']), ast.literal_eval(data_in['b_upper'])]
+  css = [ast.literal_eval(data_in['cs_{}'.format(i)]) for i in range(n)]
 
 # Verify sufficiency
 cdfs = []

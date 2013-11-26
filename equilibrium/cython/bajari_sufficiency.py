@@ -1,4 +1,5 @@
 import argparse
+import ast
 import csv
 from itertools import cycle, chain
 
@@ -26,19 +27,17 @@ file_name = args.file_name
 # Read data from file
 data_in = {}
 with open(file_name, 'rt') as f:
-    f_reader = csv.DictReader(f, delimiter=',')
+    f_reader = csv.DictReader(f, delimiter=' ')
     for row in f_reader:
         for key in row:
-            data_in.setdefault(key, []).append(float(row[key]))
+            data_in[key] = row[key]
 
 # Parse data
-n = len(data_in) - 1
-costs = np.array([data_in['costs_{}'.format(i)] for i in range(n)])
-bids = np.array(data_in['bids'])
-support = [2.0, 8.0]
-params = [{'mu': 4.0, 'sigma': 1.5},
-          {'mu': 5.0, 'sigma': 1.5},
-          {'mu': 6.0, 'sigma': 1.5}]
+support = ast.literal_eval(data_in['support'])
+params = ast.literal_eval(data_in['params'])
+n = len(params)
+costs = np.array([ast.literal_eval(data_in['costs_{}'.format(i)]) for i in range(n)])
+bids = np.array(ast.literal_eval(data_in['bids']))
 
 # Verify sufficiency
 cdfs = []

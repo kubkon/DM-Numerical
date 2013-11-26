@@ -1,5 +1,3 @@
-import csv
-
 import numpy as np
 
 import bajari.fsm.fsm_internal as fsm_internal
@@ -60,9 +58,10 @@ if __name__ == "__main__":
 
     # save the results in a file
     with open('fsm.out', 'wt') as f:
-        writer = csv.writer(f)
-        labels = ['bids'] + ['costs_{}'.format(i) for i in range(n)]
-        writer.writerow(labels)
-
-        for b, cs in zip(bids, costs.T):
-            writer.writerow([b] + cs.tolist())
+        labels = ['support', 'params', 'bids'] + ['costs_{}'.format(i) for i in range(n)]
+        labels = ' '.join(labels)
+        values = [support, params, bids.tolist()] + [c.tolist() for c in costs]
+        values = ' '.join(map(lambda x: repr(x).replace(' ', ''), values))
+        f.write(labels)
+        f.write('\n')
+        f.write(values)
