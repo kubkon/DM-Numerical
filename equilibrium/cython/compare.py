@@ -104,6 +104,10 @@ legend = ['Bidder ' + str(i) for i in range(n)]
 for i in range(n):
     plt.plot(dm_costs[i], dm_bids, next(style))
 plt.grid()
+plt.xlabel(r'Cost-hat, $\hat{c}_i$')
+plt.ylabel(r'Bid-hat, $\hat{b}_i$')
+plt.xlim(support)
+plt.ylim([dm_bids[0], dm_bids[-1]])
 plt.legend(legend, loc='upper left')
 plt.savefig('dm.pdf')
 
@@ -111,6 +115,10 @@ plt.figure()
 for i in range(n):
     plt.plot(bajari_costs[i], bajari_bids, next(style))
 plt.grid()
+plt.xlabel(r'Cost, $c_i$')
+plt.ylabel(r'Bid, $b_i$')
+plt.xlim(support)
+plt.ylim([bajari_bids[0], bajari_bids[-1]])
 plt.legend(legend, loc='upper left')
 plt.savefig('bajari.pdf')
 
@@ -119,6 +127,9 @@ plt.figure()
 for i in range(n):
     plt.plot(dm_costs[i], dm_exp_utilities[i], next(style))
 plt.grid()
+plt.xlabel(r'Cost-hat, $\hat{c}_i$')
+plt.ylabel(r'Expected utility')
+plt.xlim(support)
 plt.legend(legend)
 plt.savefig('dm_exp_utilities.pdf')
 
@@ -126,6 +137,9 @@ plt.figure()
 for i in range(n):
     plt.plot(bajari_costs[i], bajari_exp_utilities[i], next(style))
 plt.grid()
+plt.xlabel(r'Cost, $c_i$')
+plt.ylabel(r'Expected utility')
+plt.xlim(support)
 plt.legend(legend)
 plt.savefig('bajari_exp_utilities.pdf')
 
@@ -135,5 +149,40 @@ for i in range(n):
     plt.plot(dm_costs[i], dm_exp_utilities[i], '-r')
     plt.plot(t_bajari_costs[i], t_bajari_exps[i], '--b')
     plt.grid()
+    plt.xlabel(r'Cost')
+    plt.ylabel(r'Expected utility')
     plt.legend(list(map(lambda x: x + str(i), ['DM Bidder ', 'Bajari Bidder '])), loc='upper right')
     plt.savefig('compare_' + str(i) + '.pdf')
+
+# 4. pdfs of the scenario
+plt.figure()
+xs = np.linspace(support[0], support[1], 1000)
+
+funcs = []
+for p in params:
+  funcs.append(ss.truncnorm((support[0] - p['mu']) / p['sigma'], (support[1] - p['mu']) / p['sigma'], loc=p['mu'], scale=p['sigma']))
+
+for f in funcs:
+    ys = [f.pdf(x) for x in xs]
+    plt.plot(xs, ys, next(style))
+
+plt.xlabel(r'Cost, $c_i$')
+plt.ylabel(r'Probability density function, $f_i(c_i)$')
+plt.grid()
+plt.xlim(support)
+plt.legend(legend)
+plt.savefig('pdfs_scenario.pdf')
+
+# 5. cdfs of the scenario
+plt.figure()
+
+for f in funcs:
+    ys = [f.cdf(x) for x in xs]
+    plt.plot(xs, ys, next(style))
+
+plt.xlabel(r'Cost, $c_i$')
+plt.ylabel(r'Cumulative distribution function, $F_i(c_i)$')
+plt.grid()
+plt.xlim(support)
+plt.legend(legend)
+plt.savefig('cdfs_scenario.pdf')
