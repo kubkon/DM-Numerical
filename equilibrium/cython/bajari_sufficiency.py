@@ -56,9 +56,11 @@ sts = cycle(styles)
 for c in costs:
   plt.plot(c, bids, next(sts))
 plt.grid()
-plt.xlabel(r"Cost-hat, $\hat{c}_i$")
-plt.ylabel(r"Bid-hat, $\hat{b}_i$")
-labels = ['Network operator {}'.format(i) for i in range(1, n+1)]
+plt.xlim(support)
+plt.ylim([int(bids[0]), bids[-1]])
+plt.xlabel(r"Cost, $c_i$")
+plt.ylabel(r"Bid, $b_i$")
+labels = ['Bidder {}'.format(i) for i in range(1, n+1)]
 plt.legend(labels, loc='upper left')
 plt.savefig('approximation.pdf')
 
@@ -69,10 +71,12 @@ for c, sc, sb in zip(costs, s_costs, s_bids):
   plt.plot(c, bids, next(sts))
   plt.plot(sc, sb, next(clss))
 plt.grid()
-plt.xlabel(r"Cost-hat, $\hat{c}_i$")
-plt.ylabel(r"Bid-hat, $\hat{b}_i$")
-labels_1 = ['NO {}'.format(i) for i in range(1, n+1)]
-labels_2 = ['NO {}: Best response'.format(i) for i in range(1, n+1)]
+plt.xlim(support)
+plt.ylim([int(bids[0]), bids[-1]])
+plt.xlabel(r"Cost, $c_i$")
+plt.ylabel(r"Bid, $b_i$")
+labels_1 = ['Bidder {}'.format(i) for i in range(1, n+1)]
+labels_2 = ['Bidder {}: Best response'.format(i) for i in range(1, n+1)]
 labels = list(chain.from_iterable(zip(labels_1, labels_2)))
 plt.legend(labels, loc='upper left')
 plt.savefig('sufficiency.pdf')
@@ -82,6 +86,8 @@ for i, c, sc, sb in zip(range(1, n+1), costs, s_costs, s_bids):
   plt.plot(c, bids, 'b')
   plt.plot(sc, sb, 'r.')
   plt.grid()
-  plt.xlabel(r"Cost-hat, $\hat{c}_i$")
-  plt.ylabel(r"Bid-hat, $\hat{b}_i$")
+  plt.xlim(support)
+  plt.ylim([int(bids[0]), bids[-1]])
+  plt.xlabel(r"Cost, $c_i$")
+  plt.ylabel(r"Bid, $b_i$")
   plt.savefig('sufficiency_{}.pdf'.format(i))
