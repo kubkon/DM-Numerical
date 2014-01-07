@@ -42,7 +42,7 @@ bids = np.array(ast.literal_eval(data_in['bids']))
 # Verify sufficiency
 cdfs = []
 for p in params:
-  cdfs.append(ss.truncnorm((support[0] - p['mu']) / p['sigma'], (support[1] - p['mu']) / p['sigma'], loc=p['mu'], scale=p['sigma']))
+  cdfs.append(ss.truncnorm((support[0] - p['location']) / p['scale'], (support[1] - p['location']) / p['scale'], loc=p['location'], scale=p['scale']))
 
 step = len(bids) // 35
 s_costs, s_bids = verify_sufficiency(costs, bids, support[1], cdfs, step=step)

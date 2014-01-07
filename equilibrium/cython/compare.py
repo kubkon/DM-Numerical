@@ -51,8 +51,8 @@ params = []
 
 for i in np.arange(n):
     mu = lowers[i] + w / 2
-    sigma = w / 8
-    params.append({'mu': mu, 'sigma': sigma})
+    sigma = w / 4
+    params.append({'location': mu, 'scale': sigma, 'shape': 0})
 
 # compute approximations
 dm_bids, dm_costs = dm.solve(w, reputations)
@@ -64,7 +64,7 @@ dm_params = [{'loc': lowers[i], 'shape': w} for i in np.arange(n)]
 dm_probs = estimate_winning_probs(dm_costs, ss.uniform, dm_params)
 
 # 2. Bajari
-bajari_params = [{'loc': p['mu'], 'shape': p['sigma']} for p in params]
+bajari_params = [{'loc': p['location'], 'shape': p['scale']} for p in params]
 bajari_probs = estimate_winning_probs(bajari_costs, ss.norm, bajari_params)
 
 # compute expected utilities
@@ -160,7 +160,7 @@ xs = np.linspace(support[0], support[1], 1000)
 
 funcs = []
 for p in params:
-  funcs.append(ss.truncnorm((support[0] - p['mu']) / p['sigma'], (support[1] - p['mu']) / p['sigma'], loc=p['mu'], scale=p['sigma']))
+  funcs.append(ss.truncnorm((support[0] - p['location']) / p['scale'], (support[1] - p['location']) / p['scale'], loc=p['location'], scale=p['scale']))
 
 for f in funcs:
     ys = [f.pdf(x) for x in xs]
