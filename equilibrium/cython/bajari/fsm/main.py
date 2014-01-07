@@ -45,10 +45,9 @@ def solve(support, params, granularity=10000):
 
 if __name__ == "__main__":
     # set the scenario
-    support = [2.0, 8.0]
-    params = [{'mu': 4.0, 'sigma': 1.5},
-              {'mu': 5.0, 'sigma': 1.5},
-              {'mu': 6.0, 'sigma': 1.5}]
+    support = [0.125, 0.875]
+    params = [{'mu': 0.375, 'sigma': 0.0625},
+              {'mu': 0.625, 'sigma': 0.0625}]
     n = len(params)
 
     # approximate

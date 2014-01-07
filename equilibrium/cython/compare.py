@@ -50,8 +50,8 @@ support = [lowers[0], uppers[1]]
 params = []
 
 for i in np.arange(n):
-    mu = lowers[i] + w / 4
-    sigma = w / 4
+    mu = lowers[i] + w / 2
+    sigma = w / 8
     params.append({'mu': mu, 'sigma': sigma})
 
 # compute approximations
@@ -100,7 +100,7 @@ for i in np.arange(n):
 plt.figure()
 styles = ['-r', '--b']
 style = its.cycle(styles)
-legend = ['Bidder ' + str(i) for i in range(n)]
+legend = ['Bidder ' + str(i) for i in range(1, n+1)]
 for i in range(n):
     plt.plot(dm_costs[i], dm_bids, next(style))
 plt.grid()
@@ -151,8 +151,8 @@ for i in range(n):
     plt.grid()
     plt.xlabel(r'Cost')
     plt.ylabel(r'Expected utility')
-    plt.legend(list(map(lambda x: x + str(i), ['DM Bidder ', 'Bajari Bidder '])), loc='upper right')
-    plt.savefig('compare_' + str(i) + '.pdf')
+    plt.legend(list(map(lambda x: x + str(i+1), ['DM Bidder ', 'Bajari Bidder '])), loc='upper right')
+    plt.savefig('compare_' + str(i+1) + '.pdf')
 
 # 4. pdfs of the scenario
 plt.figure()
