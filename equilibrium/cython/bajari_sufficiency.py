@@ -10,6 +10,7 @@ import scipy.stats as ss
 from matplotlib import rc
 
 from util import verify_sufficiency
+from bajari.dists.main import skewnormal
 
 csv.field_size_limit(1000000000)
 
@@ -42,7 +43,7 @@ bids = np.array(ast.literal_eval(data_in['bids']))
 # Verify sufficiency
 cdfs = []
 for p in params:
-  cdfs.append(ss.truncnorm((support[0] - p['location']) / p['scale'], (support[1] - p['location']) / p['scale'], loc=p['location'], scale=p['scale']))
+  cdfs.append(skewnormal(p['shape'], loc=p['location'], scale=p['scale']))
 
 step = len(bids) // 35
 s_costs, s_bids = verify_sufficiency(costs, bids, support[1], cdfs, step=step)
