@@ -41,9 +41,9 @@ def solve(support, params):
 if __name__ == '__main__':
     # set the scenario
     support = [2.0, 8.0]
-    params = [{'mu': 4.0, 'sigma': 1.5},
-              {'mu': 5.0, 'sigma': 1.5},
-              {'mu': 6.0, 'sigma': 1.5}]
+    params = [{'loc': 4.0, 'scale': 1.5, 'shape': 0},
+              {'loc': 5.0, 'scale': 1.5, 'shape': 0},
+              {'loc': 6.0, 'scale': 1.5, 'shape': 0}]
     n = len(params)
 
     # approximate

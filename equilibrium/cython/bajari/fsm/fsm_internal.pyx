@@ -1,45 +1,27 @@
 from cython_gsl cimport *
+
 from libc.stdlib cimport calloc, free
 from libc.math cimport exp, sqrt, pow, erf
 
+from bajari.dists.dists cimport c_skew_normal_pdf, c_skew_normal_cdf
+
 import numpy as np
 
-# struct describing normal distribution
-ctypedef struct NormalParams:
-  double mu
-  double sigma
+
+# struct describing distribution params
+ctypedef struct DistParams:
+    double location
+    double scale
+    double shape
 
 # struct specifying the system of ODE
 ctypedef struct Tode:
   int n # number of bidders
-  NormalParams * params # array of params describing bidders
+  DistParams * params # array of params describing bidders
   # pointer to function describing system of ODEs
-  int f(int, NormalParams *, double, double *, double *) nogil
+  int f(int, DistParams *, double, double *, double *) nogil
 
-def p_normal_cdf(params, x):
-  cdef NormalParams ps
-  ps.mu = params['mu']
-  ps.sigma = params['sigma']
-  return normal_cdf(ps, x)
-
-cdef double normal_cdf(NormalParams params, double x) nogil:
-  cdef double mu = params.mu
-  cdef double sigma = params.sigma
-  return 0.5 * (1 + erf((x - mu) / (sigma * sqrt(2))))
-
-def p_normal_pdf(params, x):
-  cdef NormalParams ps
-  ps.mu = params['mu']
-  ps.sigma = params['sigma']
-  return normal_pdf(ps, x)
-
-cdef double normal_pdf(NormalParams params, double x) nogil:
-  cdef double mu = params.mu
-  cdef double sigma = params.sigma
-  cdef double pi = 3.14159265
-  return exp(- pow(x - mu, 2) / (2 * pow(sigma,2))) / (sqrt(2 * pi) * sigma)
-
-cdef int f(int n, NormalParams * params, double t, double * y, double * f) nogil:
+cdef int f(int n, DistParams * params, double t, double * y, double * f) nogil:
   """Evolves system of ODEs at a particular independent variable t,
   and for a vector of particular dependent variables y_i(t). Mathematically,
   dy_i(t)/dt = f_i(t, y_1(t), ..., y_n(t)).
@@ -54,6 +36,7 @@ cdef int f(int n, NormalParams * params, double t, double * y, double * f) nogil
   cdef double * rs = <double *> calloc(n, sizeof(double))
   cdef int i
   cdef double r, rs_sum, num, den
+  cdef DistParams param
   rs_sum = 0
 
   for i from 0 <= i < n:
@@ -63,8 +46,9 @@ cdef int f(int n, NormalParams * params, double t, double * y, double * f) nogil
 
   # this loop corresponds to the system of equations (1.26) in the thesis
   for i from 0 <= i < n:
-    num = 1 - normal_cdf(params[i], y[i])
-    den = normal_pdf(params[i], y[i])
+    param = params[i]
+    num = 1 - c_skew_normal_cdf(y[i], param.location, param.scale, param.shape)
+    den = c_skew_normal_pdf(y[i], param.location, param.scale, param.shape)
     f[i] = num / den * (rs_sum / (n-1) - rs[i])
 
   free(rs)
@@ -92,14 +76,15 @@ def solve(params, support, bids):
   cdef int n = len(params) # number of bidders
 
   # convert list of dicts params into C array of structs
-  cdef NormalParams * c_params = <NormalParams *> calloc(n, sizeof(NormalParams))
+  cdef DistParams * c_params = <DistParams *> calloc(n, sizeof(DistParams))
   if c_params is NULL:
     raise MemoryError()
   cdef int i
-  cdef NormalParams param
+  cdef DistParams param
   for i from 0 <= i < n:
-    param.mu = params[i]['mu']
-    param.sigma = params[i]['sigma']
+    param.location = params[i]['location']
+    param.scale = params[i]['scale']
+    param.shape = params[i]['shape']
     c_params[i] = param
 
   # initialize the struct describing system of ODEs

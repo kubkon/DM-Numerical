@@ -42,7 +42,7 @@ bids = np.array(ast.literal_eval(data_in['bids']))
 # Verify sufficiency
 cdfs = []
 for p in params:
-  cdfs.append(ss.truncnorm((support[0] - p['mu']) / p['sigma'], (support[1] - p['mu']) / p['sigma'], loc=p['mu'], scale=p['sigma']))
+  cdfs.append(ss.truncnorm((support[0] - p['location']) / p['scale'], (support[1] - p['location']) / p['scale'], loc=p['location'], scale=p['scale']))
 
 step = len(bids) // 35
 s_costs, s_bids = verify_sufficiency(costs, bids, support[1], cdfs, step=step)
@@ -56,8 +56,8 @@ sts = cycle(styles)
 for c in costs:
   plt.plot(c, bids, next(sts))
 plt.grid()
-plt.xlim(support)
-plt.ylim([int(bids[0]), bids[-1]])
+# plt.xlim(support)
+# plt.ylim([int(bids[0]), bids[-1]])
 plt.xlabel(r"Cost, $c_i$")
 plt.ylabel(r"Bid, $b_i$")
 labels = ['Bidder {}'.format(i) for i in range(1, n+1)]
