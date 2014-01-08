@@ -7,6 +7,7 @@ import scipy.stats as ss
 
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
+from bajari.dists.main import skewnormal
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
@@ -24,7 +25,11 @@ def estimate_winning_probs(costs, func, params):
         # get index of the competing bidder
         j = (i+1) % 2
         # extract cdf function
-        prob_func = func(**params[j])
+        try:
+            prob_func = func(params[j]['shape'], loc=params[j]['location'], scale=params[j]['scale'])
+
+        except KeyError:
+            prob_func = func(**params[j])
 
         for k in np.arange(m):
             probs[i][k] = 1 - prob_func.cdf(costs[i][k])
@@ -50,9 +55,10 @@ support = [lowers[0], uppers[1]]
 params = []
 
 for i in np.arange(n):
-    mu = lowers[i] + w / 2
-    sigma = w / 4
-    params.append({'location': mu, 'scale': sigma, 'shape': 0})
+    location = lowers[i] + w / 2
+    scale = w / 4
+    shape = -1 if (i + 1) % 2 else 1
+    params.append({'location': location, 'scale': scale, 'shape': shape})
 
 # compute approximations
 dm_bids, dm_costs = dm.solve(w, reputations)
@@ -60,12 +66,11 @@ bajari_bids, bajari_costs = bajari.solve(support, params)
 
 # compute probabilities of winning for both auctions
 # 1. DM
-dm_params = [{'loc': lowers[i], 'shape': w} for i in np.arange(n)]
+dm_params = [{'loc': lowers[i], 'scale': w} for i in np.arange(n)]
 dm_probs = estimate_winning_probs(dm_costs, ss.uniform, dm_params)
 
 # 2. Bajari
-bajari_params = [{'loc': p['location'], 'shape': p['scale']} for p in params]
-bajari_probs = estimate_winning_probs(bajari_costs, ss.norm, bajari_params)
+bajari_probs = estimate_winning_probs(bajari_costs, skewnormal, params)
 
 # compute expected utilities
 dm_exp_utilities = np.empty(dm_costs.shape, np.float)
@@ -160,7 +165,7 @@ xs = np.linspace(support[0], support[1], 1000)
 
 funcs = []
 for p in params:
-  funcs.append(ss.truncnorm((support[0] - p['location']) / p['scale'], (support[1] - p['location']) / p['scale'], loc=p['location'], scale=p['scale']))
+  funcs.append(skewnormal(p['shape'], loc=p['location'], scale=p['scale']))
 
 for f in funcs:
     ys = [f.pdf(x) for x in xs]
