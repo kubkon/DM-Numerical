@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from ppm_b import p_cost_function, p_deriv_cost_function, p_linspace
+from bajari.ppm.ppm_internal import p_cost_function, p_deriv_cost_function, p_linspace
 
 
 def test_cost_function():

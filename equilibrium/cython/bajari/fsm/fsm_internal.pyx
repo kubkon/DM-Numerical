@@ -1,65 +1,27 @@
 from cython_gsl cimport *
+
 from libc.stdlib cimport calloc, free
 from libc.math cimport exp, sqrt, pow, erf
 
+from bajari.dists.dists cimport c_skew_normal_pdf, c_skew_normal_cdf
+
 import numpy as np
 
-# struct describing skew normal distribution
-ctypedef struct SkewNormalParams:
-  double location
-  double scale
-  double shape
+
+# struct describing distribution params
+ctypedef struct DistParams:
+    double location
+    double scale
+    double shape
 
 # struct specifying the system of ODE
 ctypedef struct Tode:
   int n # number of bidders
-  SkewNormalParams * params # array of params describing bidders
+  DistParams * params # array of params describing bidders
   # pointer to function describing system of ODEs
-  int f(int, SkewNormalParams *, double, double *, double *) nogil
+  int f(int, DistParams *, double, double *, double *) nogil
 
-# distributions
-# FIX:ME define distribution functions externally
-cdef double normal_cdf(double loc, double shape, double x) nogil:
-    return 0.5 * (1 + erf((x - loc) / (shape * sqrt(2))))
-
-cdef double normal_pdf(double loc, double shape, double x) nogil:
-    cdef double pi = 3.14159265
-    return exp(- pow(x - loc, 2) / (2 * pow(shape,2))) / (sqrt(2 * pi) * shape)
-
-cdef double standard_normal_cdf(double x) nogil:
-    return normal_cdf(0, 1, x)
-
-cdef double standard_normal_pdf(double x) nogil:
-    return normal_pdf(0, 1, x)
-
-cdef double skew_normal_pdf(double loc, double scale, double shape, double x) nogil:
-    cdef double x_value = (x - loc) / scale
-    return 2 / scale * standard_normal_pdf(x_value) * standard_normal_cdf(shape * x_value)
-
-cdef double gsl_skew_normal_pdf(double x, void * params) nogil:
-    cdef double * t_params = <double *> params
-    return skew_normal_pdf(t_params[0], t_params[1], t_params[2], x)
-
-cdef double skew_normal_cdf(double loc, double scale, double shape, double x) nogil:
-    # Initialize
-    cdef gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000)
-    cdef double result, error
-
-    # Define integrand
-    cdef double * params = [loc, scale, shape]
-    cdef gsl_function f
-    f.function = &gsl_skew_normal_pdf
-    f.params = params
-
-    # Integrate
-    gsl_integration_qagil(&f, x, 1e-8, 1e-8, 1000, w, &result, &error)
-
-    # Clean up
-    gsl_integration_workspace_free(w)
-
-    return result
-
-cdef int f(int n, SkewNormalParams * params, double t, double * y, double * f) nogil:
+cdef int f(int n, DistParams * params, double t, double * y, double * f) nogil:
   """Evolves system of ODEs at a particular independent variable t,
   and for a vector of particular dependent variables y_i(t). Mathematically,
   dy_i(t)/dt = f_i(t, y_1(t), ..., y_n(t)).
@@ -74,7 +36,7 @@ cdef int f(int n, SkewNormalParams * params, double t, double * y, double * f) n
   cdef double * rs = <double *> calloc(n, sizeof(double))
   cdef int i
   cdef double r, rs_sum, num, den
-  cdef SkewNormalParams param
+  cdef DistParams param
   rs_sum = 0
 
   for i from 0 <= i < n:
@@ -85,8 +47,8 @@ cdef int f(int n, SkewNormalParams * params, double t, double * y, double * f) n
   # this loop corresponds to the system of equations (1.26) in the thesis
   for i from 0 <= i < n:
     param = params[i]
-    num = 1 - skew_normal_cdf(param.location, param.scale, param.shape, y[i])
-    den = skew_normal_pdf(param.location, param.scale, param.shape, y[i])
+    num = 1 - c_skew_normal_cdf(y[i], param.location, param.scale, param.shape)
+    den = c_skew_normal_pdf(y[i], param.location, param.scale, param.shape)
     f[i] = num / den * (rs_sum / (n-1) - rs[i])
 
   free(rs)
@@ -114,11 +76,11 @@ def solve(params, support, bids):
   cdef int n = len(params) # number of bidders
 
   # convert list of dicts params into C array of structs
-  cdef SkewNormalParams * c_params = <SkewNormalParams *> calloc(n, sizeof(SkewNormalParams))
+  cdef DistParams * c_params = <DistParams *> calloc(n, sizeof(DistParams))
   if c_params is NULL:
     raise MemoryError()
   cdef int i
-  cdef SkewNormalParams param
+  cdef DistParams param
   for i from 0 <= i < n:
     param.location = params[i]['location']
     param.scale = params[i]['scale']

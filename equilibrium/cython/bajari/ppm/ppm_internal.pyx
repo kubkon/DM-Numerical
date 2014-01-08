@@ -3,35 +3,26 @@ from cython_gsl cimport *
 from libc.stdlib cimport calloc, free
 from libc.math cimport exp, sqrt, pow, erf
 
+from bajari.dists.dists cimport c_skew_normal_pdf, c_skew_normal_cdf
+
 import numpy as np
 
 # C structs
-# describes normal distribution
-ctypedef struct NormalParams:
-    double mu
-    double sigma
+# describes distribution params
+ctypedef struct DistParams:
+    double location
+    double scale
+    double shape
 
 # specifies the minimization system
 ctypedef struct Tmin:
     int n, # number of bidders
     int k, # number of polynomial coefficients per bidder
     int granularity, # grid granularity
-    const NormalParams * normal_params, # normal params for each bidder
+    const DistParams * dist_params, # distribution params for each bidder
     const double * support, # support range
-    double f(int, int, int, double, const NormalParams *,
+    double f(int, int, int, double, const DistParams *,
              const double *, const gsl_vector *) nogil # pointer to objective function
-
-cdef double normal_cdf(NormalParams params, double x) nogil:
-    cdef double mu = params.mu
-    cdef double sigma = params.sigma
-    return 0.5 * (1 + erf((x - mu) / (sigma * sqrt(2))))
-
-cdef double normal_pdf(NormalParams params, double x) nogil:
-    cdef double mu = params.mu
-    cdef double sigma = params.sigma
-    cdef double pi = 3.14159265
-    return exp(- pow(x - mu, 2) / (2 * pow(sigma,2))) / (sqrt(2 * pi) * sigma)
-
 
 cdef double cost_function(double b_lower,
                           const gsl_vector * v,
@@ -183,7 +174,7 @@ cdef double objective_function(int n,
                                int k,
                                int granularity,
                                double b_lower,
-                               const NormalParams * normal_params,
+                               const DistParams * dist_params,
                                const double * support,
                                const gsl_vector * vs) nogil:
     """
@@ -208,7 +199,7 @@ cdef double objective_function(int n,
     cdef double sums = 0
     cdef double b, deriv, cost, cdf, pdf, prob, g
     cdef int i, j, l
-    cdef NormalParams norm_params
+    cdef DistParams dist_param
     cdef gsl_vector_view v_view
     cdef gsl_vector * v
     cdef double summed, t_cost
@@ -220,8 +211,8 @@ cdef double objective_function(int n,
         # bidder i
         v_view = gsl_vector_subvector(vs, i*k, k)
         v = &v_view.vector
-        # Get normal params for the current bidder
-        norm_params = normal_params[i]
+        # Get dist params for the current bidder
+        dist_param = dist_params[i]
 
         for j from 0 <= j < granularity:
             # Get bid value
@@ -231,16 +222,8 @@ cdef double objective_function(int n,
             # Get cost value
             cost = cost_function(b_lower, v, b)
             # Calculate probabilities for bidder i
-            # if 2 < cost and cost < 8:
-            cdf = normal_cdf(norm_params, cost)
-            pdf = normal_pdf(norm_params, cost)
-            # elif cost <= 2:
-            #     cdf = normal_cdf(norm_params, 2)
-            #     pdf = normal_pdf(norm_params, 2)
-            # else:
-            #     cdf = normal_cdf(norm_params, 8)
-            #     pdf = normal_pdf(norm_params, 8)
-            # printf("b=%f cdf=%f pdf=%f\n", b, cdf, pdf)
+            cdf = c_skew_normal_cdf(cost, dist_param.location, dist_param.scale, dist_param.shape)
+            pdf = c_skew_normal_pdf(cost, dist_param.location, dist_param.scale, dist_param.shape)
             prob = (1 - cdf) / pdf
             # Calculate first-order condition at b
             summed = 0
@@ -287,7 +270,7 @@ cdef double min_f(const gsl_vector * v, void * params) nogil:
         value = gsl_vector_get(v, i+1)
         gsl_vector_set(vs, i, value)
 
-    min_f_output = P.f(P.n, P.k, P.granularity, b_lower, P.normal_params, P.support, vs)
+    min_f_output = P.f(P.n, P.k, P.granularity, b_lower, P.dist_params, P.support, vs)
 
     gsl_vector_free(vs)
 
@@ -311,13 +294,14 @@ def solve (b_lower, support, params, poly_coeffs, size_box=None, granularity=100
     P.granularity = granularity
     P.f = objective_function
     
-    cdef NormalParams * normal_params
-    normal_params = <NormalParams *> calloc(n, sizeof(NormalParams))
+    cdef DistParams * dist_params
+    dist_params = <DistParams *> calloc(n, sizeof(DistParams))
     cdef int i
     for i from 0 <= i < n:
-        normal_params[i].mu = params[i]['mu']
-        normal_params[i].sigma = params[i]['sigma']
-    P.normal_params = normal_params
+        dist_params[i].location = params[i]['loc']
+        dist_params[i].scale = params[i]['scale']
+        dist_params[i].shape = params[i]['shape']
+    P.dist_params = dist_params
 
     cdef int supp_size = len(support)
     cdef double * supp = <double *> calloc(supp_size, sizeof(double))
@@ -387,5 +371,8 @@ def solve (b_lower, support, params, poly_coeffs, size_box=None, granularity=100
     gsl_multimin_fminimizer_free(s)
     gsl_vector_free(x)
     gsl_vector_free(ss)
+
+    free(dist_params)
+    free(supp)
 
     return (b_lower, poly_coeffs)

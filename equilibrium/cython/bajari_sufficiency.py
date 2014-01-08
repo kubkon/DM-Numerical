@@ -56,8 +56,8 @@ sts = cycle(styles)
 for c in costs:
   plt.plot(c, bids, next(sts))
 plt.grid()
-plt.xlim(support)
-plt.ylim([int(bids[0]), bids[-1]])
+# plt.xlim(support)
+# plt.ylim([int(bids[0]), bids[-1]])
 plt.xlabel(r"Cost, $c_i$")
 plt.ylabel(r"Bid, $b_i$")
 labels = ['Bidder {}'.format(i) for i in range(1, n+1)]
