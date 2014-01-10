@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from bajari.ppm.ppm_internal import p_cost_function, p_deriv_cost_function, p_linspace
+from bajari.ppm.ppm_internal import cost_function, deriv_cost_function, linspace
 
 
 def test_cost_function():
@@ -21,7 +21,7 @@ def test_cost_function():
     expected = b_lower + np.dot(alphas, bs)
 
     # Calculate actual result
-    actual = p_cost_function(b_lower, v, b)
+    actual = cost_function(b_lower, v, b)
     
     # Compare
     assert expected == actual
@@ -45,7 +45,7 @@ def test_deriv_cost_function():
     expected = np.dot(alphas, bs)
 
     # Calculate actual result
-    actual = p_deriv_cost_function(b_lower, v, b)
+    actual = deriv_cost_function(b_lower, v, b)
     
     # Compare
     assert expected == actual
@@ -64,7 +64,7 @@ def test_linspace():
     expected = np.linspace(begin, end, granularity)
 
     # Calculate actual result
-    actual = p_linspace(begin, end, granularity)
+    actual = linspace(begin, end, granularity)
 
     # Compare
     for e, a in zip(expected, actual):
