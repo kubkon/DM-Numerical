@@ -47,3 +47,37 @@ def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
             z += 1
 
     return sampled_costs, best_responses
+
+def estimate_winning_probs(costs, cdf, params):
+    # initialize
+    shape = costs.shape
+    probs = np.empty(shape, np.float)
+    n, m = shape[0], shape[1]
+
+    # compute probabilities
+    for i in np.arange(n):
+        # get index of the competing bidder
+        j = (i+1) % 2
+        # extract cdf function
+        try:
+            prob_func = cdf(params[j]['shape'], loc=params[j]['location'], scale=params[j]['scale'])
+
+        except KeyError:
+            prob_func = cdf(**params[j])
+
+        for k in np.arange(m):
+            probs[i][k] = 1 - prob_func.cdf(costs[i][k])
+
+    return probs
+
+def compute_expected_utilities(bids, costs, cdf, params):
+    # compute probabilities of winning
+    probs = estimate_winning_probs(costs, cdf, params)
+
+    # compute expected utilities
+    exp_utilities = np.empty(costs.shape, np.float)
+
+    for i in np.arange(costs.shape[0]):
+        exp_utilities[i] = np.multiply((bids - costs[i]), probs[i])
+    
+    return exp_utilities
