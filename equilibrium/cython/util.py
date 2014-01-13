@@ -81,3 +81,17 @@ def compute_expected_utilities(bids, costs, cdf, params):
         exp_utilities[i] = np.multiply((bids - costs[i]), probs[i])
     
     return exp_utilities
+
+def ks_statistic(xs, func1, func2):
+    # initialize
+    n = xs.size
+    differences = np.empty(n, np.float)
+
+    # compute differences between functions for each x
+    for i in np.arange(n):
+        differences[i] = np.absolute(func1[i] - func2[i])
+
+    # compute argmax of the differences
+    max_index = np.argmax(differences)
+
+    return (xs[max_index], differences[max_index])

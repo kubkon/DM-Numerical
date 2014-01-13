@@ -8,7 +8,7 @@ import scipy.stats as ss
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
 from bajari.dists.main import skewnormal
-from util import compute_expected_utilities
+from util import compute_expected_utilities, ks_statistic
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
@@ -35,7 +35,8 @@ params = []
 for i in np.arange(n):
     location = lowers[i] + w / 2
     scale = w / 4
-    shape = -1 if (i + 1) % 2 else 1
+    # shape = -1 if (i + 1) % 2 else 1
+    shape = 0
     params.append({'location': location, 'scale': scale, 'shape': shape})
 
 # compute approximations
@@ -69,6 +70,11 @@ for i in np.arange(n):
 
     t_bajari_exps.append(np.array(t_exps))
     t_bajari_costs.append(np.array(t_costs))
+
+# compute KS statistic (distortion) between the expected utilities
+for i in np.arange(n):
+    ks_x, ks_value = ks_statistic(t_bajari_costs[i], t_bajari_exps[i], dm_exp_utilities[i])
+    print("KS statistic for bidder %s: D(x)=%f at x=%f" % (i+1, ks_value, ks_x))
 
 # plots
 # 1. equilibrium bids
