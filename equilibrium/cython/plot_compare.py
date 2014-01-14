@@ -8,7 +8,7 @@ import scipy.stats as ss
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
 from bajari.dists.main import skewnormal
-from util import compute_expected_utilities, ks_statistic
+from util import compute_expected_utilities, ks_statistic, fit_curve
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
@@ -71,19 +71,41 @@ for i in np.arange(n):
     t_bajari_exps.append(np.array(t_exps))
     t_bajari_costs.append(np.array(t_costs))
 
-# compute KS statistic (distortion) between the expected utilities
+
+# fit polynomial curve to expected utility functions and
+# compute KS statistic (distortion between the expected utilities)
+dm_exp_funcs = []
+bajari_exp_funcs = []
+ks_coords = []
+ks_values = []
+
 for i in np.arange(n):
-    ks_x, ks_value = ks_statistic(t_bajari_costs[i], t_bajari_exps[i], dm_exp_utilities[i])
-    print("KS statistic for bidder %s: D(x)=%f at x=%f" % (i+1, ks_value, ks_x))
+    # fit
+    dm_exp_func = fit_curve(dm_costs[i], dm_exp_utilities[i], degree=5)
+    bajari_exp_func = fit_curve(t_bajari_costs[i], t_bajari_exps[i], degree=5)
+
+    dm_exp_funcs.append(dm_exp_func)
+    bajari_exp_funcs.append(bajari_exp_func)
+
+    # compute KS statistics
+    costs = np.linspace(dm_costs[i][0], dm_costs[i][-1], 1000)
+    ks_x, ks_value = ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
+    y1 = bajari_exp_func([ks_x])
+    y2 = dm_exp_func([ks_x])
+    coords = (ks_x, y1, y2) if y1 < y2 else (ks_x, y2, y1)
+    ks_coords.append(coords)
+    ks_values.append(ks_value)
 
 # plots
 # 1. equilibrium bids
 plt.figure()
-styles = ['-r', '--b']
-style = its.cycle(styles)
+linestyles = ['-r', '--b']
+markerstyles = ['.r', 'xb']
+linecycle = its.cycle(linestyles)
+markercycle = its.cycle(markerstyles)
 legend = ['Bidder ' + str(i) for i in range(1, n+1)]
 for i in range(n):
-    plt.plot(dm_costs[i], dm_bids, next(style))
+    plt.plot(dm_costs[i], dm_bids, next(linecycle))
 plt.grid()
 plt.xlabel(r'Cost-hat, $\hat{c}_i$')
 plt.ylabel(r'Bid-hat, $\hat{b}_i$')
@@ -94,7 +116,7 @@ plt.savefig('dm.pdf')
 
 plt.figure()
 for i in range(n):
-    plt.plot(bajari_costs[i], bajari_bids, next(style))
+    plt.plot(bajari_costs[i], bajari_bids, next(linecycle))
 plt.grid()
 plt.xlabel(r'Cost, $c_i$')
 plt.ylabel(r'Bid, $b_i$')
@@ -106,7 +128,8 @@ plt.savefig('bajari.pdf')
 # 2. expected utilities
 plt.figure()
 for i in range(n):
-    plt.plot(dm_costs[i], dm_exp_utilities[i], next(style))
+    plt.plot(dm_costs[i][::200], dm_exp_utilities[i][::200], next(markercycle))
+    plt.plot(dm_costs[i], dm_exp_funcs[i](dm_costs[i]), next(linecycle))
 plt.grid()
 plt.xlabel(r'Cost-hat, $\hat{c}_i$')
 plt.ylabel(r'Expected utility')
@@ -116,7 +139,8 @@ plt.savefig('dm_exp_utilities.pdf')
 
 plt.figure()
 for i in range(n):
-    plt.plot(bajari_costs[i], bajari_exp_utilities[i], next(style))
+    plt.plot(t_bajari_costs[i][::200], t_bajari_exps[i][::200], next(markercycle))
+    plt.plot(dm_costs[i], bajari_exp_funcs[i](dm_costs[i]), next(linecycle))
 plt.grid()
 plt.xlabel(r'Cost, $c_i$')
 plt.ylabel(r'Expected utility')
@@ -127,8 +151,19 @@ plt.savefig('bajari_exp_utilities.pdf')
 # 3. expected utilities for corresponding bidders across two auctions
 for i in range(n):
     plt.figure()
-    plt.plot(dm_costs[i], dm_exp_utilities[i], '-r')
-    plt.plot(t_bajari_costs[i], t_bajari_exps[i], '--b')
+    plt.plot(dm_costs[i], dm_exp_funcs[i](dm_costs[i]), '-r')
+    plt.plot(dm_costs[i], bajari_exp_funcs[i](dm_costs[i]), '--b')
+    plt.annotate("",
+                xy=(ks_coords[i][0], ks_coords[i][1]),
+                xycoords="data",
+                xytext=(ks_coords[i][0], ks_coords[i][2]),
+                textcoords="data",
+                arrowprops=dict(arrowstyle="<->"),
+                fontsize=8)
+    plt.annotate(r'$D(x) = %f$' % ks_values[i],
+                 xy=(ks_coords[i][0], ks_coords[i][2] + 0.001),
+                 xycoords="data",
+                 fontsize=14)
     plt.grid()
     plt.xlabel(r'Cost')
     plt.ylabel(r'Expected utility')
@@ -145,7 +180,7 @@ for p in params:
 
 for f in funcs:
     ys = [f.pdf(x) for x in xs]
-    plt.plot(xs, ys, next(style))
+    plt.plot(xs, ys, next(linecycle))
 
 plt.xlabel(r'Cost, $c_i$')
 plt.ylabel(r'Probability density function, $f_i(c_i)$')
@@ -159,7 +194,7 @@ plt.figure()
 
 for f in funcs:
     ys = [f.cdf(x) for x in xs]
-    plt.plot(xs, ys, next(style))
+    plt.plot(xs, ys, next(linecycle))
 
 plt.xlabel(r'Cost, $c_i$')
 plt.ylabel(r'Cumulative distribution function, $F_i(c_i)$')
