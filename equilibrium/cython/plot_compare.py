@@ -51,26 +51,6 @@ dm_exp_utilities = compute_expected_utilities(dm_bids, dm_costs, ss.uniform, dm_
 # 2. Bajari
 bajari_exp_utilities = compute_expected_utilities(bajari_bids, bajari_costs, skewnormal, params)
 
-# chuck away costs & utilities that are irrelevant
-t_bajari_costs, t_bajari_exps = [], []
-
-for i in np.arange(n):
-    exps = bajari_exp_utilities[i]
-    costs = bajari_costs[i]
-    low, high = dm_costs[i][0], dm_costs[i][-1]
-    t_exps = []
-    t_costs = []
-
-    for j in np.arange(costs.size):
-        if costs[j] < low or costs[j] > high:
-            continue
-
-        t_exps.append(exps[j])
-        t_costs.append(costs[j])
-
-    t_bajari_exps.append(np.array(t_exps))
-    t_bajari_costs.append(np.array(t_costs))
-
 
 # fit polynomial curve to expected utility functions and
 # compute KS statistic (distortion between the expected utilities)
@@ -82,7 +62,7 @@ ks_values = []
 for i in np.arange(n):
     # fit
     dm_exp_func = fit_curve(dm_costs[i], dm_exp_utilities[i], degree=5)
-    bajari_exp_func = fit_curve(t_bajari_costs[i], t_bajari_exps[i], degree=5)
+    bajari_exp_func = fit_curve(bajari_costs[i], bajari_exp_utilities[i], degree=5)
 
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)
@@ -139,8 +119,8 @@ plt.savefig('dm_exp_utilities.pdf')
 
 plt.figure()
 for i in range(n):
-    plt.plot(t_bajari_costs[i][::200], t_bajari_exps[i][::200], next(markercycle))
-    plt.plot(dm_costs[i], bajari_exp_funcs[i](dm_costs[i]), next(linecycle))
+    plt.plot(bajari_costs[i][::200], bajari_exp_utilities[i][::200], next(markercycle))
+    plt.plot(bajari_costs[i], bajari_exp_funcs[i](bajari_costs[i]), next(linecycle))
 plt.grid()
 plt.xlabel(r'Cost, $c_i$')
 plt.ylabel(r'Expected utility')
