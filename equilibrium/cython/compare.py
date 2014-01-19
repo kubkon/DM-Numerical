@@ -56,8 +56,8 @@ ks_values = []
 
 for i in np.arange(n):
     # fit
-    dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
-    bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
+    dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5, maxiter=1000)
+    bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5, maxiter=1000)
 
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)

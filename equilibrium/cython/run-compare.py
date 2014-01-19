@@ -7,17 +7,19 @@ import subprocess as sub
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description="Compare auction models -- Helper script")
+parser.add_argument('num', type=int, help='number of scale values to consider')
 parser.add_argument('--batch_size', dest='batch_size', default=8,
                     type=int, help='batch size for multiprocessing')
 args = parser.parse_args()
+num = args.num
 batch_size = args.batch_size
 
 # prepare the scenario
 w = 0.5
 reps = [0.25, 0.75]
 locs = [(1-w)*r + w/2 for r in reps]
-shapes = [0, 0]
-scales = np.linspace(w/8, w, 8)
+shapes = [-1, 1]
+scales = np.linspace(w/5, w, num)
 n = len(reps)
 
 # prepare the subprocess command
