@@ -8,7 +8,7 @@ import scipy.stats as ss
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
 from bajari.dists.main import skewnormal
-from util import compute_expected_utilities, fit_curve, ks_statistic
+from util.util import compute_expected_utilities, ks_statistic, polyfit
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
@@ -49,8 +49,8 @@ def compare(w, reputations, locations, scales, shapes):
 
     for i in np.arange(n):
         # fit
-        dm_exp_func = fit_curve(dm_costs[i], dm_exp_utilities[i], degree=5)
-        bajari_exp_func = fit_curve(bajari_costs[i], bajari_exp_utilities[i], degree=5)
+        dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
+        bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
 
         dm_exp_funcs.append(dm_exp_func)
         bajari_exp_funcs.append(bajari_exp_func)
@@ -71,7 +71,7 @@ lowers = [(1-w) * r for r in reputations]
 uppers = [l + w for l in lowers]
 
 locations = [l + w / 2 for l in lowers]
-scales = np.linspace(w/8, w, 100)
+scales = np.linspace(w/8, w, 20)
 shapes = [0, 0]
 
 ks_values = []

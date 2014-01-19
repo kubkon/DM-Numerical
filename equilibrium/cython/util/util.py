@@ -1,5 +1,7 @@
 import numpy as np
-import scipy.optimize as optim
+from numpy.polynomial.polynomial import polyval
+
+from .polyfit import fit
 
 def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
     # Infer number of bidders
@@ -97,21 +99,6 @@ def ks_statistic(xs, func1, func2):
 
     return (xs[max_index], differences[max_index])
 
-def fit_curve(xs, ys, degree=3):
-    
-    def poly(coeffs, x):
-        vals = [coeffs[0]]
-        vals.extend([x**i for i in np.arange(1, len(coeffs)+1)])
-
-        return sum(map(lambda v,c: v*c, vals, coeffs))
-
-    def objective(params, y, x):
-        return y - poly(params, x)
-
-    # initialize
-    init = [1e-1 for i in np.arange(degree+1)]
-
-    # minimize in least-squares sense
-    plsq, flag = optim.leastsq(objective, init, args=(ys, xs), maxfev=10000)
-    
-    return lambda zs: np.fromiter(map(lambda z: poly(plsq, z), zs), np.float)
+def polyfit(xs, ys, degree=3, maxiter=500):
+    coeffs = fit(xs, ys, num_coeffs=(degree+1), maxiter=maxiter)
+    return lambda x: polyval(x, coeffs)

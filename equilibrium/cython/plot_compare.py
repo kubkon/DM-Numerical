@@ -8,7 +8,7 @@ import scipy.stats as ss
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
 from bajari.dists.main import skewnormal
-from util import compute_expected_utilities, ks_statistic, fit_curve
+from util.util import compute_expected_utilities, ks_statistic, polyfit
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
@@ -34,9 +34,9 @@ params = []
 
 for i in np.arange(n):
     location = lowers[i] + w / 2
-    scale = w / 4
-    # shape = -1 if (i + 1) % 2 else 1
-    shape = 0
+    scale = w/4
+    shape = -1 if (i + 1) % 2 else 1
+    # shape = 0
     params.append({'location': location, 'scale': scale, 'shape': shape})
 
 # compute approximations
@@ -61,8 +61,8 @@ ks_values = []
 
 for i in np.arange(n):
     # fit
-    dm_exp_func = fit_curve(dm_costs[i], dm_exp_utilities[i], degree=5)
-    bajari_exp_func = fit_curve(bajari_costs[i], bajari_exp_utilities[i], degree=5)
+    dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
+    bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
 
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)
