@@ -27,9 +27,13 @@ cdef int f(int n, double * uppers, double t, double * y, double * f) nogil:
   rs_sum = 0
 
   for i from 0 <= i < n:
-    r = 1 / (t - y[i])
-    rs[i] = r
-    rs_sum += r
+    r = t - y[i]
+
+    if r == 0:
+      return GSL_EZERODIV
+
+    rs[i] = 1 / r
+    rs_sum += 1 / r
 
   # this loop corresponds to the system of equations (1.26) in the thesis
   for i from 0 <= i < n:

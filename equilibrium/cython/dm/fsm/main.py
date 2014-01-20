@@ -56,7 +56,11 @@ def solve(w, reputations, granularity=10000):
         else:
             low = guess
 
-    return bids, costs
+    try:
+        return bids, costs
+
+    except UnboundLocalError:
+        raise Exception("Algorithm failed to converge.")
 
 
 if __name__ == "__main__":
