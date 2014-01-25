@@ -34,14 +34,14 @@ try:
 
     # one process at a time
     if batch_size == 1:
-        for i,s in zip(range(scales.size), scales):
+        for i,s in zip(range(len(scales)), scales):
             execmd = cmd + ''.join([" --scales=%f" % s for j in range(n)])
             output = ast.literal_eval(sub.check_output(execmd, shell=True).decode('utf-8').rstrip())
             results.append((i, output))
     # in batches
     else:
         # split into batches
-        repetitions = scales.size
+        repetitions = len(scales)
         quotient = repetitions // batch_size
         remainder = repetitions % batch_size
 
@@ -89,5 +89,13 @@ for i in range(n):
 plt.xlabel("Variance")
 plt.ylabel("Kolmogorov-Smirnov statistic")
 plt.grid()
-plt.legend(["Bidder %d" % i for i in range(n)])
-plt.savefig("compare.pdf")
+plt.legend(["Bidder %d" % i for i in range(n)], loc='upper left')
+
+# compose name of the file with the figure
+filename = ("compare_w_" + str(w) +
+            "_reps_" + str(reps) +
+            "_locs_" + str(locs) + 
+            "_shapes_" + str(shapes) +
+            ".pdf")
+
+plt.savefig(filename)
