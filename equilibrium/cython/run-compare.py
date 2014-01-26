@@ -1,6 +1,6 @@
 import argparse
 import ast
-from itertools import cycle
+from itertools import cycle, repeat
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess as sub
@@ -17,16 +17,31 @@ batch_size = args.batch_size
 # prepare the scenario
 w = 0.5
 reps = [0.25, 0.75]
-locs = [(1-w)*r + w/2 for r in reps]
-shapes = [-1, 1]
-scales = np.linspace(w/5, w, num)
+# locs = [(1-w)*r + w/2 for r in reps]
+# scales = np.linspace(w/5, w, num)
+locs = [np.linspace((1-w)*r, (1-w)*r + w, num) for r in reps]
+scales = [0.128, 0.128]
+shapes = [0, 0]
+
 n = len(reps)
 
-# prepare the subprocess command
-cmd = "python compare.py --w=%f" % w
+# unpack
+# locs = list(repeat(locs, num))
+# scales = list(zip(scales, scales))
+locs = list(zip(*locs))
+scales = list(repeat(scales, num))
+shapes = list(repeat(shapes, num))
 
-for r,l,sh in zip(reps, locs, shapes):
-    cmd += " --reps=%f --locs=%f --shapes=%f" % (r,l,sh)
+# prepare the subprocess commands
+cmds = []
+
+for zipped in zip(locs, scales, shapes):
+    cmd = "python compare.py --w=%f" % w
+    cmd += " --reps=%f --reps=%f" % tuple(reps)
+    cmd += " --locs=%f --locs=%f" % tuple(zipped[0])
+    cmd += " --scales=%f --scales=%f" % tuple(zipped[1])
+    cmd += " --shapes=%f --shapes=%f" % tuple(zipped[2])
+    cmds.append(cmd)
 
 # run comparisons
 try:
@@ -34,14 +49,13 @@ try:
 
     # one process at a time
     if batch_size == 1:
-        for i,s in zip(range(len(scales)), scales):
-            execmd = cmd + ''.join([" --scales=%f" % s for j in range(n)])
-            output = ast.literal_eval(sub.check_output(execmd, shell=True).decode('utf-8').rstrip())
-            results.append((i, output))
+        for cmd in cmds:
+            output = ast.literal_eval(sub.check_output(cmd, shell=True).decode('utf-8').rstrip())
+            results.append(output)
     # in batches
     else:
         # split into batches
-        repetitions = len(scales)
+        repetitions = len(cmds)
         quotient = repetitions // batch_size
         remainder = repetitions % batch_size
 
@@ -50,13 +64,12 @@ try:
         
         procs = []
         for i in range(num_proc):
-            execmd = cmd + ''.join([" --scales=%f" % scales[i] for j in range(n)])
-            procs.append((i, sub.Popen(execmd, shell=True, stdout=sub.PIPE)))
+            procs.append(sub.Popen(cmds[i], shell=True, stdout=sub.PIPE))
 
         while True:
             for p in procs:
-                output = ast.literal_eval(p[1].communicate()[0].decode('utf-8').rstrip())
-                results.append((p[0], output))
+                output = ast.literal_eval(p.communicate()[0].decode('utf-8').rstrip())
+                results.append(output)
 
             if len(results) == repetitions:
                 break
@@ -65,8 +78,7 @@ try:
             temp_num = batch_size if num_proc + batch_size <= repetitions else remainder
 
             for i in range(num_proc, num_proc + temp_num):
-                execmd = cmd + ''.join([" --scales=%f" % scales[i] for j in range(n)])
-                procs.append((i, sub.Popen(execmd, shell=True, stdout=sub.PIPE)))
+                procs.append(sub.Popen(cmds[i], shell=True, stdout=sub.PIPE))
             num_proc += temp_num
 
 except OSError as e:
@@ -80,22 +92,14 @@ styles_cycle = cycle(styles)
 for i in range(n):
     xs, ys = [], []
 
-    for r in results:
-        xs.append(scales[r[0]])
-        ys.append(r[1][i])
+    for s,r in zip(locs, results):
+        xs.append(s[i])
+        ys.append(r[i])
 
     plt.plot(xs, ys, next(styles_cycle))
 
-plt.xlabel("Variance")
+plt.xlabel("Mean")
 plt.ylabel("Kolmogorov-Smirnov statistic")
 plt.grid()
 plt.legend(["Bidder %d" % i for i in range(n)], loc='upper left')
-
-# compose name of the file with the figure
-filename = ("compare_w_" + str(w) +
-            "_reps_" + str(reps) +
-            "_locs_" + str(locs) + 
-            "_shapes_" + str(shapes) +
-            ".pdf")
-
-plt.savefig(filename)
+plt.savefig("compare.pdf")
