@@ -20,8 +20,8 @@ reps = [0.25, 0.75]
 # locs = [(1-w)*r + w/2 for r in reps]
 # scales = np.linspace(w/5, w, num)
 locs = [np.linspace((1-w)*r, (1-w)*r + w, num) for r in reps]
-scales = [0.128, 0.128]
-shapes = [0, 0]
+scales = [0.1, 0.1]
+shapes = [-1, 1]
 
 n = len(reps)
 
@@ -65,6 +65,7 @@ try:
         procs = []
         for i in range(num_proc):
             procs.append(sub.Popen(cmds[i], shell=True, stdout=sub.PIPE))
+            print(cmds[i])
 
         while True:
             for p in procs:

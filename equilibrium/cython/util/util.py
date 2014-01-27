@@ -2,6 +2,7 @@ import numpy as np
 from numpy.polynomial.polynomial import polyval
 
 from .polyfit import fit
+from .interpolate import CubicSpline
 
 def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
     # Infer number of bidders
@@ -102,3 +103,15 @@ def ks_statistic(xs, func1, func2):
 def polyfit(xs, ys, degree=3, maxiter=500):
     coeffs = fit(xs, ys, num_coeffs=(degree+1), maxiter=maxiter)
     return lambda x: polyval(x, coeffs)
+
+def csplinefit(xs, ys):
+    def inner(xss):
+        yss = np.empty(xss.size, np.float)
+
+        with CubicSpline(xs, ys) as spline:
+            for i in np.arange(xss.size):
+                yss[i] = spline.evaluate(xss[i])
+
+        return yss
+
+    return inner

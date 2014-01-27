@@ -27,6 +27,10 @@ ext_modules = [Extension("bajari.dists.dists", ["bajari/dists/dists.pyx"],
                Extension("util.polyfit", ["util/polyfit.pyx"],
                          libraries=cython_gsl.get_libraries(),
                          library_dirs=[cython_gsl.get_library_dir()],
+                         cython_include_dirs=[cython_gsl.get_cython_include_dir()]),
+               Extension("util.interpolate", ["util/interpolate.pyx"],
+                         libraries=cython_gsl.get_libraries(),
+                         library_dirs=[cython_gsl.get_library_dir()],
                          cython_include_dirs=[cython_gsl.get_cython_include_dir()])]
 
 setup(

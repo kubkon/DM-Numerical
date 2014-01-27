@@ -2,6 +2,7 @@ from cython_gsl cimport *
 
 from libc.stdlib cimport calloc, free
 from libc.math cimport pow
+from libc.stdio cimport printf
 
 import numpy as np
 

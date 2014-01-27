@@ -8,7 +8,7 @@ import scipy.stats as ss
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
 from bajari.dists.main import skewnormal
-from util.util import compute_expected_utilities, ks_statistic, polyfit
+from util.util import compute_expected_utilities, ks_statistic, polyfit, csplinefit
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
@@ -51,8 +51,7 @@ dm_exp_utilities = compute_expected_utilities(dm_bids, dm_costs, ss.uniform, dm_
 # 2. Bajari
 bajari_exp_utilities = compute_expected_utilities(bajari_bids, bajari_costs, skewnormal, params)
 
-
-# fit polynomial curve to expected utility functions and
+# interpolate using cubic splines and
 # compute KS statistic (distortion between the expected utilities)
 dm_exp_funcs = []
 bajari_exp_funcs = []
@@ -61,20 +60,48 @@ ks_values = []
 
 for i in np.arange(n):
     # fit
-    dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
-    bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
+    print("Enter")
+    dm_exp_func = csplinefit(dm_costs[i], dm_exp_utilities[i])
+    bajari_exp_func = csplinefit(bajari_costs[i], bajari_exp_utilities[i])
 
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)
 
+    print("Leave")
     # compute KS statistics
     costs = np.linspace(dm_costs[i][0], dm_costs[i][-1], 1000)
+    print(costs)
     ks_x, ks_value = ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
     y1 = bajari_exp_func([ks_x])
+    print("WAT")
     y2 = dm_exp_func([ks_x])
     coords = (ks_x, y1, y2) if y1 < y2 else (ks_x, y2, y1)
     ks_coords.append(coords)
     ks_values.append(ks_value)
+
+# # fit polynomial curve to expected utility functions and
+# # compute KS statistic (distortion between the expected utilities)
+# dm_exp_funcs = []
+# bajari_exp_funcs = []
+# ks_coords = []
+# ks_values = []
+
+# for i in np.arange(n):
+#     # fit
+#     dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
+#     bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
+
+#     dm_exp_funcs.append(dm_exp_func)
+#     bajari_exp_funcs.append(bajari_exp_func)
+
+#     # compute KS statistics
+#     costs = np.linspace(dm_costs[i][0], dm_costs[i][-1], 1000)
+#     ks_x, ks_value = ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
+#     y1 = bajari_exp_func([ks_x])
+#     y2 = dm_exp_func([ks_x])
+#     coords = (ks_x, y1, y2) if y1 < y2 else (ks_x, y2, y1)
+#     ks_coords.append(coords)
+#     ks_values.append(ks_value)
 
 # plots
 # 1. equilibrium bids
