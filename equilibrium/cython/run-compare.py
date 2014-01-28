@@ -17,19 +17,19 @@ batch_size = args.batch_size
 # prepare the scenario
 w = 0.5
 reps = [0.25, 0.75]
-# locs = [(1-w)*r + w/2 for r in reps]
-# scales = np.linspace(w/5, w, num)
-locs = [np.linspace((1-w)*r, (1-w)*r + w, num) for r in reps]
-scales = [0.1, 0.1]
-shapes = [-1, 1]
+locs = [(1-w)*r + w/2 for r in reps]
+scales = np.linspace(w/5, w, num)
+# locs = [np.linspace((1-w)*r, (1-w)*r + w, num) for r in reps]
+# scales = [0.1, 0.1]
+shapes = [0, 0]
 
 n = len(reps)
 
 # unpack
-# locs = list(repeat(locs, num))
-# scales = list(zip(scales, scales))
-locs = list(zip(*locs))
-scales = list(repeat(scales, num))
+locs = list(repeat(locs, num))
+scales = list(zip(scales, scales))
+# locs = list(zip(*locs))
+# scales = list(repeat(scales, num))
 shapes = list(repeat(shapes, num))
 
 # prepare the subprocess commands
@@ -65,7 +65,6 @@ try:
         procs = []
         for i in range(num_proc):
             procs.append(sub.Popen(cmds[i], shell=True, stdout=sub.PIPE))
-            print(cmds[i])
 
         while True:
             for p in procs:
@@ -93,13 +92,13 @@ styles_cycle = cycle(styles)
 for i in range(n):
     xs, ys = [], []
 
-    for s,r in zip(locs, results):
+    for s,r in zip(scales, results):
         xs.append(s[i])
         ys.append(r[i])
 
     plt.plot(xs, ys, next(styles_cycle))
 
-plt.xlabel("Mean")
+plt.xlabel("Variance")
 plt.ylabel("Kolmogorov-Smirnov statistic")
 plt.grid()
 plt.legend(["Bidder %d" % i for i in range(n)], loc='upper left')

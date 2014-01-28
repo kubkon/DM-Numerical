@@ -66,8 +66,8 @@ for i in np.arange(n):
     # fit
     dm_exp_func = util.csplinefit(dm_costs[i], dm_exp_utilities[i])
     bajari_exp_func = util.csplinefit(bajari_costs[i], bajari_exp_utilities[i])
-    # dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
-    # bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
+    # dm_exp_func = util.polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
+    # bajari_exp_func = util.polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
 
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)

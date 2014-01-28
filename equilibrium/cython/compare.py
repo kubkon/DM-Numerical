@@ -6,7 +6,7 @@ import scipy.stats as ss
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
 from bajari.dists.main import skewnormal
-from util.util import compute_expected_utilities, ks_statistic, polyfit
+import util.util as util
 
 
 # parse command line arguments
@@ -40,13 +40,17 @@ bajari_params = [{'location': loc, 'scale': scale, 'shape': shape} for loc, scal
 dm_bids, dm_costs = dm.solve(w, reputations)
 bajari_bids, bajari_costs = bajari.solve(support, bajari_params)
 
+# ensure costs are monotonically increasing
+dm_costs, dm_bids = util.ensure_monotonicity(dm_costs, dm_bids)
+bajari_costs, bajari_bids = util.ensure_monotonicity(bajari_costs, bajari_bids)
+
 # compute expected utilities for both auctions
 # 1. DM
 dm_params = [{'loc': lowers[i], 'scale': w} for i in np.arange(n)]
-dm_exp_utilities = compute_expected_utilities(dm_bids, dm_costs, ss.uniform, dm_params)
+dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, ss.uniform, dm_params)
 
 # 2. Bajari
-bajari_exp_utilities = compute_expected_utilities(bajari_bids, bajari_costs, skewnormal, bajari_params)
+bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, skewnormal, bajari_params)
 
 # fit polynomial curve to expected utility functions and
 # compute KS statistic (distortion between the expected utilities)
@@ -56,15 +60,15 @@ ks_values = []
 
 for i in np.arange(n):
     # fit
-    dm_exp_func = polyfit(dm_costs[i], dm_exp_utilities[i], degree=5, maxiter=1000)
-    bajari_exp_func = polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5, maxiter=1000)
+    dm_exp_func = util.csplinefit(dm_costs[i], dm_exp_utilities[i])
+    bajari_exp_func = util.csplinefit(bajari_costs[i], bajari_exp_utilities[i])
 
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)
 
     # compute KS statistics
     costs = np.linspace(dm_costs[i][0], dm_costs[i][-1], 1000)
-    _, ks_value = ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
+    _, ks_value = util.ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
     ks_values.append(ks_value)
 
 print(ks_values)

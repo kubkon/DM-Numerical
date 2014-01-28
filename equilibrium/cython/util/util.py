@@ -88,7 +88,7 @@ def compute_expected_utilities(bids, costs, cdf, params):
 
 def ensure_monotonicity(costs, bids):
     n, m = costs.shape
-    indices = []
+    indices = [m]
 
     for i in np.arange(n):
         for j in np.arange(m-1):
