@@ -86,6 +86,21 @@ def compute_expected_utilities(bids, costs, cdf, params):
     
     return exp_utilities
 
+def ensure_monotonicity(costs, bids):
+    n, m = costs.shape
+    indices = []
+
+    for i in np.arange(n):
+        for j in np.arange(m-1):
+
+            if costs[i][j] >= costs[i][j+1]:
+                indices.append(j)
+                break
+
+    max_index = np.amin(indices)
+
+    return costs[:max_index, :max_index], bids[:max_index]
+
 def ks_statistic(xs, func1, func2):
     # initialize
     n = xs.size
