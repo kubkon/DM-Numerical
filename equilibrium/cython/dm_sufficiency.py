@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 
 from dm.common import upper_bound_bids
-from util import verify_sufficiency
+from util.util import verify_sufficiency
 
 csv.field_size_limit(1000000000)
 
