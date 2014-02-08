@@ -34,9 +34,9 @@ params = []
 
 for i in np.arange(n):
     location = lowers[i] + w / 2
-    scale = 0.128
-    # shape = -1 if (i + 1) % 2 else 1
-    shape = 0
+    scale = w/4
+    shape = -1 if (i + 1) % 2 else 1
+    # shape = 0
     params.append({'location': location, 'scale': scale, 'shape': shape})
 
 # compute approximations

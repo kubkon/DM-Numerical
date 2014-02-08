@@ -49,9 +49,10 @@ def solve(support, params, granularity=10000):
 
 if __name__ == "__main__":
     # set the scenario
-    support = [0.125, 0.875]
-    params = [{'location': 0.375, 'scale': 0.125, 'shape': 1},
-              {'location': 0.625, 'scale': 0.125, 'shape': -1}]
+    support = [2, 8]
+    params = [{'location': 4.0, 'scale': 1.5, 'shape': 0},
+              {'location': 5.0, 'scale': 1.5, 'shape': 0},
+              {'location': 6.0, 'scale': 1.5, 'shape': 0}]
     n = len(params)
 
     # approximate
