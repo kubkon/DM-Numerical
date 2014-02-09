@@ -55,27 +55,28 @@ cdef int ode(double t, double y[], double f[], void *params) nogil:
     P.f(P.n, P.uppers, t, y, f)
     return GSL_SUCCESS
 
-cdef int estimate_k(double b, const double *lowers, int n) nogil:
+cdef int estimate_k(double b, const gsl_vector *lowers) nogil:
     """This function estimates the value of k(b). See Algorithm 2.4 in Chapter 2
     of the thesis for more information.
 
     Arguments:
     b -- estimate of the lower bound on bids
-    lowers -- array of lower extremities
+    lowers -- gsl vector of lower extremities
     n -- number of bidders
     """
+    cdef int n = lowers.size
     cdef int i, j, k = n
     cdef double sums, c = 0
 
     for i from 1 <= i < n:
         sums = 0
         for j from 0 <= j <= i:
-            sums += 1 / (b - lowers[j])
+            sums += 1 / (b - gsl_vector_get(lowers, j))
 
         c = b - i / sums
 
         if i < n-1:
-            if lowers[i] <= c and c < lowers[i+1]:
+            if gsl_vector_get(lowers, i) <= c and c < gsl_vector_get(lowers, i+1):
                 k = i+1
                 break
 
