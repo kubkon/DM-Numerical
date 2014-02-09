@@ -7,19 +7,19 @@ import numpy as np
 ctypedef struct Tode:
     # number of bidders
     int n
-    # array of upper extremities
-    double * uppers
+    # gsl vector of upper extremities
+    const gsl_vector * uppers
     # pointer to function describing system of ODEs
-    int f(int, double *, double, double *, double *) nogil
+    int f(int, const gsl_vector *, double, double *, double *) nogil
 
-cdef int f(int n, double * uppers, double t, double * y, double * f) nogil:
+cdef int f(int n, const gsl_vector * uppers, double t, double * y, double * f) nogil:
     """Evolves system of ODEs at a particular independent variable t,
     and for a vector of particular dependent variables y_i(t). Mathematically,
     dy_i(t)/dt = f_i(t, y_1(t), ..., y_n(t)).
 
     Arguments:
     n -- number of bidders
-    uppers -- array of upper extremities
+    uppers -- gsl vector of upper extremities
     t -- independent variable
     y -- array of dependent variables
     f -- array of solved vector elements f_i(..)
@@ -40,7 +40,7 @@ cdef int f(int n, double * uppers, double t, double * y, double * f) nogil:
 
     # this loop corresponds to the system of equations (1.26) in the thesis
     for i from 0 <= i < n:
-        f[i] = (uppers[i] - y[i]) * (rs_sum / (n-1) - rs[i])
+        f[i] = (gsl_vector_get(uppers, i) - y[i]) * (rs_sum / (n-1) - rs[i])
 
     free(rs)
     return GSL_SUCCESS
@@ -82,29 +82,21 @@ cdef int estimate_k(double b, const gsl_vector *lowers) nogil:
 
     return k
 
-def solve(initial, uppers, bids):
-    """Returns matrix of costs that establish the solution (and equilibrium)
-    to the system of ODEs (1.26) in the thesis.
+cdef int solve_ode(gsl_vector_const_view v_initial,
+                   gsl_vector_const_view v_uppers,
+                   const gsl_vector * bids,
+                   gsl_matrix * costs) nogil:
+    cdef const gsl_vector * initial = &v_initial.vector
+    cdef const gsl_vector * uppers = &v_uppers.vector
 
-    Arguments (all NumPy arrays):
-    initial -- array of initial values y_i
-    uppers -- array of upper extremities
-    bids -- array of bids (t's to solve for)
-    """
-    cdef int n = initial.size # number of bidders
-
-    # convert NumPy array of uppers into C array
-    cdef double * c_uppers = <double *> calloc(n, sizeof(double))
-    if c_uppers is NULL:
-        raise MemoryError()
-    cdef int i
-    for i from 0 <= i < n:
-        c_uppers[i] = uppers[i]
+    cdef int i, j
+    cdef int m = bids.size
+    cdef int n = initial.size
 
     # initialize the struct describing system of ODEs
     cdef Tode P
     P.n = n
-    P.uppers = c_uppers
+    P.uppers = uppers
     P.f = f
 
     # initialize GSL ODE system
@@ -117,7 +109,7 @@ def solve(initial, uppers, bids):
     # initialize initial step size (hstart), absolute error (epsAbs),
     # and relative error (epsRel)
     cdef double hstart, epsAbs, epsRel
-    hstart = (bids[1] - bids[0]) / 100.0
+    hstart = (gsl_vector_get(bids, 1) - gsl_vector_get(bids, 0)) / 100.0
     epsAbs = epsRel = 1.49012e-8
 
     # intialize GSL driver
@@ -129,42 +121,86 @@ def solve(initial, uppers, bids):
     # populate y_i with initial conditions
     cdef double *y = <double *> calloc(n, sizeof(double))
     if y is NULL:
-        raise MemoryError()
-    for i from 0 <= i < n:
-        y[i] = initial[i]
+        return GSL_ENOMEM
 
-    cdef int status, j
+    for i from 0 <= i < n:
+        y[i] = gsl_vector_get(initial, i)
+
+    cdef int status
     cdef double t, ti
     # set independent variable to initial point
-    t = bids[0]
+    t = gsl_vector_get(bids, 0)
     # add initial values to the solution set
-    sol = [initial]
+    for j from 0 <= j < n:
+        gsl_matrix_set(costs, 0, j, gsl_vector_get(initial, j))
+
+    # solve the system at instants in bids array
+    for i from 1 <= i < m:
+        # advance independent variable
+        ti = gsl_vector_get(bids, i)
+        # solve the system of ODEs from t to ti
+        status = gsl_odeiv2_driver_apply(d, &t, ti, y)
+
+        if status != GSL_SUCCESS:
+            return status
+
+        # add result to the solution matrix
+        for j from 0 <= j < n:
+            gsl_matrix_set(costs, i, j, y[j])
+
+    free(y)
+    gsl_odeiv2_driver_free(d)
+
+    return GSL_SUCCESS
+
+def solve(lowers, uppers, bids):
+    """Returns matrix of costs that establish the solution (and equilibrium)
+    to the system of ODEs (1.26) in the thesis.
+
+    Arguments (all NumPy arrays):
+    lowers -- array of lower extremities
+    uppers -- array of upper extremities
+    bids -- array of bids (t's to solve for)
+    """
+    cdef int i, j
+    cdef int m = bids.size
+    cdef int n = lowers.size
+
+    cdef gsl_vector * c_lowers = gsl_vector_calloc(n)
+    cdef gsl_vector * c_uppers = gsl_vector_calloc(n)
+    for i from 0 <= i < n:
+        gsl_vector_set(c_lowers, i, lowers[i])
+        gsl_vector_set(c_uppers, i, uppers[i])
+
+    cdef gsl_vector * c_bids = gsl_vector_calloc(m)
+    for i from 0 <= i < m:
+        gsl_vector_set(c_bids, i, bids[i])
+
+    cdef gsl_matrix * c_costs = gsl_matrix_calloc(m, n)
 
     try:
         # try solving the system at instants in bids array
-        for j from 1 <= j < bids.size:
-            # advance independent variable
-            ti = bids[j]
-            # solve the system of ODEs from t to ti
-            status = gsl_odeiv2_driver_apply(d, &t, ti, y)
+        status = solve_ode(gsl_vector_const_subvector(c_lowers, 0, n),
+                           gsl_vector_const_subvector(c_uppers, 0, n),
+                           c_bids,
+                           c_costs)
 
-            if status != GSL_SUCCESS:
-                # if unsuccessful, raise an error
-                # FIX:ME define custom errors
-                msg = "Error, return value=%d\n" % status
-                raise Exception(msg)
+        if status != GSL_SUCCESS:
+            # if unsuccessful, raise an error
+            # FIX:ME define custom errors
+            msg = "Error, return value=%d\n" % status
+            raise Exception(msg)
 
-            # create empty array of costs (next row in the solution matrix)
-            costs = np.empty(n, dtype=np.float64)
-            # populate the array with the contents of y C array
-            for i from 0 <= i < n:
-                costs[i] = y[i]
-            # append to the solution matrix
-            sol += [costs]
+        costs = np.empty((m, n), np.float)
+
+        for i from 0 <= i < m:
+            for j from 0 <= j < n:
+                costs[i][j] = gsl_matrix_get(c_costs, i, j)
 
     finally:
-        free(c_uppers)
-        free(y)
-        gsl_odeiv2_driver_free(d)
+        gsl_vector_free(c_lowers)
+        gsl_vector_free(c_uppers)
+        gsl_vector_free(c_bids)
+        gsl_matrix_free(c_costs)
 
-    return np.array(sol)
+    return costs
