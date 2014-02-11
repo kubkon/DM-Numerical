@@ -1,6 +1,7 @@
 from cython_gsl cimport *
 from libc.stdlib cimport calloc, free
-from libc.math cimport abs
+from libc.math cimport fabs
+
 import numpy as np
 
 # C struct
@@ -55,33 +56,6 @@ cdef int ode(double t, double y[], double f[], void *params) nogil:
     # solve ODE at instant t
     P.f(P.n, P.uppers, t, y, f)
     return GSL_SUCCESS
-
-cdef int estimate_k(double b, const gsl_vector *lowers) nogil:
-    """This function estimates the value of k(b). See Algorithm 2.4 in Chapter 2
-    of the thesis for more information.
-
-    Arguments:
-    b -- estimate of the lower bound on bids
-    lowers -- gsl vector of lower extremities
-    n -- number of bidders
-    """
-    cdef int n = lowers.size
-    cdef int i, j, k = n
-    cdef double sums, c = 0
-
-    for i from 1 <= i < n:
-        sums = 0
-        for j from 0 <= j <= i:
-            sums += 1 / (b - gsl_vector_get(lowers, j))
-
-        c = b - i / sums
-
-        if i < n-1:
-            if gsl_vector_get(lowers, i) <= c and c < gsl_vector_get(lowers, i+1):
-                k = i+1
-                break
-
-    return k
 
 cdef int solve_ode(gsl_vector_const_view v_uppers,
                    gsl_vector_const_view v_initial,
@@ -156,13 +130,15 @@ cdef int solve_ode(gsl_vector_const_view v_uppers,
 
     return GSL_SUCCESS
 
-cdef int add_extension(int s, int k,
-                       gsl_vector_const_view v_bids,
-                       gsl_matrix_view v_costs) nogil:
+cdef int add_extension(gsl_vector_const_view v_bids,
+                       gsl_matrix_view v_costs,
+                       gsl_matrix_view v_costs_ext) nogil:
     cdef const gsl_vector * bids = &v_bids.vector
-    cdef gsl_matrix * costs = &v_costs.matrix
+    cdef const gsl_matrix * costs = &v_costs.matrix
+    cdef gsl_matrix * costs_ext = &v_costs_ext.matrix
 
     cdef int i, j
+    cdef int k = costs.size2
     cdef double b, c, sums, ext
 
     for i from 0 <= i < bids.size:
@@ -173,10 +149,65 @@ cdef int add_extension(int s, int k,
             c = gsl_matrix_get(costs, i, j)
             sums += 1 / (b - c)
 
-        ext = b - (k - 1) / sums
-        gsl_matrix_set(costs, i, k+s-1, ext)
+        ext = b - (k-1) / sums
+
+        for j from 0 <= j < costs_ext.size2:
+            gsl_matrix_set(costs_ext, i, j, ext)
 
     return GSL_SUCCESS
+
+cdef int min_index(const gsl_vector * v, const double x) nogil:
+    cdef gsl_vector * copy = gsl_vector_calloc(v.size)
+    cdef int i, index
+    cdef double y
+
+    gsl_vector_memcpy(copy, v)
+
+    gsl_vector_add_constant(copy, (-1) * x)
+
+    for i from 0 <= i < v.size:
+        y = gsl_vector_get(copy, i)
+        gsl_vector_set(copy, i, fabs(y))
+
+    index = gsl_vector_min_index(copy)
+
+    gsl_vector_free(copy)
+
+    return index
+
+cdef int estimate_k(double b, const gsl_vector * c_lowers) nogil:
+    """This function estimates the value of k(b).
+    See Algorithm 2.4 in Chapter 2 of the thesis for more information.
+
+    Arguments:
+    b -- estimate of the lower bound on bids
+    c_lowers -- array of lower extremities
+    """
+    cdef int n = c_lowers.size
+    cdef int i, j, k = n
+    cdef double c = 0
+    cdef double sums
+
+    for i from 1 <= i < n:
+        sums = 0
+        for j from 0 <= j <= i:
+            sums += 1 / (b - gsl_vector_get(c_lowers, j))
+
+        c = b - i / sums
+
+        if i < n-1:
+            if gsl_vector_get(c_lowers, i) <= c and c < gsl_vector_get(c_lowers, i+1):
+                k = i+1
+                break
+
+    return k
+
+def assert_success(status):
+    if status != GSL_SUCCESS:
+        # if unsuccessful, raise an error
+        # FIX:ME define custom errors
+        msg = "Error, return value=%d\n" % status
+        raise Exception(msg)
 
 def solve(lowers, uppers, bids):
     """Returns matrix of costs that establish the solution (and equilibrium)
@@ -191,7 +222,6 @@ def solve(lowers, uppers, bids):
     cdef int m = bids.size
     cdef int n = lowers.size
     cdef int index
-    cdef double b_lower = bids[0]
     cdef double prev, curr
 
     cdef gsl_vector * c_uppers = gsl_vector_calloc(n)
@@ -206,57 +236,51 @@ def solve(lowers, uppers, bids):
 
     cdef gsl_matrix * c_costs = gsl_matrix_calloc(m, n)
 
-    try:
-        # estimate k(b)
-        k = estimate_k(b_lower, initial)
+    cdef gsl_vector_view v
 
-        # try solving the system at instants in bids array
-        status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k),
-                           gsl_vector_const_subvector(initial, 0, k),
-                           gsl_vector_const_subvector(c_bids, 0, m),
-                           gsl_matrix_submatrix(c_costs, 0, 0, m, n))
+    # estimate k
+    k = estimate_k(bids[0], initial)
 
-        if k < n:
-            # compute bidding extension
-            status = add_extension(n-k, k,
-                                   gsl_vector_const_subvector(c_bids, 0, m),
-                                   gsl_matrix_submatrix(c_costs, 0, 0, m, n))
+    # try solving the system at instants in bids array
+    status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k),
+                       gsl_vector_const_subvector(initial, 0, k),
+                       gsl_vector_const_subvector(c_bids, 0, m),
+                       gsl_matrix_submatrix(c_costs, 0, 0, m, n))
 
-            # find index of truncation
-            index = 0
-            for i from 1 <= i < m:
-                prev = abs(gsl_matrix_get(c_costs, i-1, k) - lowers[k])
-                curr = abs(gsl_matrix_get(c_costs, i, k) - lowers[k])
+    assert_success(status)
 
-                if prev > curr:
-                    index = i
+    if k < n:
 
-            # set new initial conditions
-            for j from 0 <= j < k+1:
-                gsl_vector_set(initial, j, gsl_matrix_get(c_costs, index, j))
+        # compute bidding extension
+        status = add_extension(gsl_vector_const_subvector(c_bids, 0, m),
+                               gsl_matrix_submatrix(c_costs, 0, 0, m, k),
+                               gsl_matrix_submatrix(c_costs, 0, k, m, n-k))
 
-            # solve system at new initial conditions
-            status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k+1),
-                               gsl_vector_const_subvector(initial, 0, k+1),
-                               gsl_vector_const_subvector(c_bids, index, m-index),
-                               gsl_matrix_submatrix(c_costs, index, 0, m-index, n))
+        # find index of truncation
+        v = gsl_matrix_column(c_costs, k)
+        index = min_index(&v.vector, lowers[k])
 
-        if status != GSL_SUCCESS:
-            # if unsuccessful, raise an error
-            # FIX:ME define custom errors
-            msg = "Error, return value=%d\n" % status
-            raise Exception(msg)
+        # set new initial conditions
+        for j from 0 <= j < k+1:
+            gsl_vector_set(initial, j, gsl_matrix_get(c_costs, index, j))
 
-        costs = np.empty((m, n), np.float)
+        # solve system at new initial conditions
+        status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k+1),
+                           gsl_vector_const_subvector(initial, 0, k+1),
+                           gsl_vector_const_subvector(c_bids, index, m-index),
+                           gsl_matrix_submatrix(c_costs, index, 0, m-index, n))
 
-        for i from 0 <= i < m:
-            for j from 0 <= j < n:
-                costs[i][j] = gsl_matrix_get(c_costs, i, j)
+        assert_success(status)
 
-    finally:
-        gsl_vector_free(c_uppers)
-        gsl_vector_free(initial)
-        gsl_vector_free(c_bids)
-        gsl_matrix_free(c_costs)
+    costs = np.empty((m, n), np.float)
+
+    for i from 0 <= i < m:
+        for j from 0 <= j < n:
+            costs[i][j] = gsl_matrix_get(c_costs, i, j)
+
+    gsl_vector_free(c_uppers)
+    gsl_vector_free(initial)
+    gsl_vector_free(c_bids)
+    gsl_matrix_free(c_costs)
 
     return costs

@@ -31,23 +31,29 @@ def solve(w, reputations, granularity=10000):
 
     # run the FSM algorithm until the estimate of the lower bound
     # on bids is found
+    param = 1e-6
     while high - low > epsilon:
         guess = 0.5 * (low + high)
-        bids = np.linspace(guess, b_upper, num=num, endpoint=False)
+        bids = np.linspace(guess, b_upper-param, num=num, endpoint=False)
 
         # solve the system
         try:
+            print("guess=%f, b_upper=%f" % (guess, b_upper-param))
             costs = efsm_internal.solve(lowers, uppers, bids).T
 
         except Exception:
             # if an error is raised, set low to guess and continue
-            low = guess
+            param += 1e-6
             continue
+
+        # modify array of lower extremities to account for the bidding
+        # extension
+        initial = costs[0,:]
 
         for i in np.arange(n):
             for j in np.arange(num):
                 x = costs[i][j]
-                cond1[j] = lowers[i] <= x and x <= b_upper
+                cond1[j] = initial[i] <= x and x <= b_upper
                 cond2[j] = bids[j] > x
 
         for i in np.arange(1, num):
@@ -67,7 +73,7 @@ def solve(w, reputations, granularity=10000):
 
 if __name__ == "__main__":
     # set the scenario
-    w = 0.55
+    w = 0.525
     reputations = np.array([0.25, 0.5, 0.75], dtype=np.float)
     n = reputations.size
 
