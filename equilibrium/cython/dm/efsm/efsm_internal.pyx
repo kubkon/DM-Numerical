@@ -1,5 +1,6 @@
 from cython_gsl cimport *
 from libc.stdlib cimport calloc, free
+from libc.math cimport abs
 import numpy as np
 
 # C struct
@@ -82,12 +83,14 @@ cdef int estimate_k(double b, const gsl_vector *lowers) nogil:
 
     return k
 
-cdef int solve_ode(gsl_vector_const_view v_initial,
-                   gsl_vector_const_view v_uppers,
-                   const gsl_vector * bids,
-                   gsl_matrix * costs) nogil:
-    cdef const gsl_vector * initial = &v_initial.vector
+cdef int solve_ode(gsl_vector_const_view v_uppers,
+                   gsl_vector_const_view v_initial,
+                   gsl_vector_const_view v_bids,
+                   gsl_matrix_view v_costs) nogil:
     cdef const gsl_vector * uppers = &v_uppers.vector
+    cdef const gsl_vector * initial = &v_initial.vector
+    cdef const gsl_vector * bids = &v_bids.vector
+    cdef gsl_matrix * costs = &v_costs.matrix
 
     cdef int i, j
     cdef int m = bids.size
@@ -153,6 +156,28 @@ cdef int solve_ode(gsl_vector_const_view v_initial,
 
     return GSL_SUCCESS
 
+cdef int add_extension(int s, int k,
+                       gsl_vector_const_view v_bids,
+                       gsl_matrix_view v_costs) nogil:
+    cdef const gsl_vector * bids = &v_bids.vector
+    cdef gsl_matrix * costs = &v_costs.matrix
+
+    cdef int i, j
+    cdef double b, c, sums, ext
+
+    for i from 0 <= i < bids.size:
+        b = gsl_vector_get(bids, i)
+
+        sums = 0
+        for j from 0 <= j < k:
+            c = gsl_matrix_get(costs, i, j)
+            sums += 1 / (b - c)
+
+        ext = b - (k - 1) / sums
+        gsl_matrix_set(costs, i, k+s-1, ext)
+
+    return GSL_SUCCESS
+
 def solve(lowers, uppers, bids):
     """Returns matrix of costs that establish the solution (and equilibrium)
     to the system of ODEs (1.26) in the thesis.
@@ -162,15 +187,18 @@ def solve(lowers, uppers, bids):
     uppers -- array of upper extremities
     bids -- array of bids (t's to solve for)
     """
-    cdef int i, j
+    cdef int i, j, k
     cdef int m = bids.size
     cdef int n = lowers.size
+    cdef int index
+    cdef double b_lower = bids[0]
+    cdef double prev, curr
 
-    cdef gsl_vector * c_lowers = gsl_vector_calloc(n)
     cdef gsl_vector * c_uppers = gsl_vector_calloc(n)
+    cdef gsl_vector * initial = gsl_vector_calloc(n)
     for i from 0 <= i < n:
-        gsl_vector_set(c_lowers, i, lowers[i])
         gsl_vector_set(c_uppers, i, uppers[i])
+        gsl_vector_set(initial, i, lowers[i])
 
     cdef gsl_vector * c_bids = gsl_vector_calloc(m)
     for i from 0 <= i < m:
@@ -179,11 +207,39 @@ def solve(lowers, uppers, bids):
     cdef gsl_matrix * c_costs = gsl_matrix_calloc(m, n)
 
     try:
+        # estimate k(b)
+        k = estimate_k(b_lower, initial)
+
         # try solving the system at instants in bids array
-        status = solve_ode(gsl_vector_const_subvector(c_lowers, 0, n),
-                           gsl_vector_const_subvector(c_uppers, 0, n),
-                           c_bids,
-                           c_costs)
+        status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k),
+                           gsl_vector_const_subvector(initial, 0, k),
+                           gsl_vector_const_subvector(c_bids, 0, m),
+                           gsl_matrix_submatrix(c_costs, 0, 0, m, n))
+
+        if k < n:
+            # compute bidding extension
+            status = add_extension(n-k, k,
+                                   gsl_vector_const_subvector(c_bids, 0, m),
+                                   gsl_matrix_submatrix(c_costs, 0, 0, m, n))
+
+            # find index of truncation
+            index = 0
+            for i from 1 <= i < m:
+                prev = abs(gsl_matrix_get(c_costs, i-1, k) - lowers[k])
+                curr = abs(gsl_matrix_get(c_costs, i, k) - lowers[k])
+
+                if prev > curr:
+                    index = i
+
+            # set new initial conditions
+            for j from 0 <= j < k+1:
+                gsl_vector_set(initial, j, gsl_matrix_get(c_costs, index, j))
+
+            # solve system at new initial conditions
+            status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k+1),
+                               gsl_vector_const_subvector(initial, 0, k+1),
+                               gsl_vector_const_subvector(c_bids, index, m-index),
+                               gsl_matrix_submatrix(c_costs, index, 0, m-index, n))
 
         if status != GSL_SUCCESS:
             # if unsuccessful, raise an error
@@ -198,8 +254,8 @@ def solve(lowers, uppers, bids):
                 costs[i][j] = gsl_matrix_get(c_costs, i, j)
 
     finally:
-        gsl_vector_free(c_lowers)
         gsl_vector_free(c_uppers)
+        gsl_vector_free(initial)
         gsl_vector_free(c_bids)
         gsl_matrix_free(c_costs)
 
