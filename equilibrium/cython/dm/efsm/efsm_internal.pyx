@@ -202,6 +202,21 @@ cdef int estimate_k(double b, const gsl_vector * c_lowers) nogil:
 
     return k
 
+def p_estimate_k(b, lowers):
+    """Python wrapper for estimate_k function.
+    """
+    cdef int i, n = lowers.size
+    cdef gsl_vector * c_lowers = gsl_vector_calloc(n)
+
+    for i from 0 <= i < n:
+        gsl_vector_set(c_lowers, i, lowers[i])
+
+    cdef int k = estimate_k(b, c_lowers)
+
+    gsl_vector_free(c_lowers)
+
+    return k
+
 def assert_success(status):
     if status != GSL_SUCCESS:
         # if unsuccessful, raise an error
@@ -240,6 +255,7 @@ def solve(lowers, uppers, bids):
 
     # estimate k
     k = estimate_k(bids[0], initial)
+    print(k)
 
     # try solving the system at instants in bids array
     status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k),
