@@ -6,3 +6,4 @@
 !*.pxd
 !*.hs
 !*.md
+!Makefile
