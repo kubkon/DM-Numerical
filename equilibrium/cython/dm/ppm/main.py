@@ -4,34 +4,22 @@ from dm.common import upper_bound_bids
 import dm.ppm.ppm_internal as ppm_internal
 
 
-def solve(w, reputations):
+def solve_generic(initial, uppers, b_upper):
     # infer number of bidders
-    n = reputations.size
-
-    # compute an array of lower and upper extremities
-    lowers = np.empty(n, dtype=np.float)
-    uppers = np.empty(n, dtype=np.float)
-
-    for i in np.arange(n):
-        r = reputations[i]
-        lowers[i] = (1-w) * r
-        uppers[i] = (1-w) * r + w
-
-    # estimate the upper bound on bids
-    b_upper = upper_bound_bids(lowers, uppers)
+    n = initial.size
 
     # set initial conditions for the PPM algorithm
     k = 3
     K = 8
     poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
-    b_lower = lowers[1] + 1e-3
+    b_lower = initial[1] + 1e-3
     size_box = [1e-1 for i in range(k*n + 1)]
 
     # run the PPM algorithm until k >= K
     while True:
         b_lower, poly_coeffs = ppm_internal.solve(b_lower,
                                                   b_upper,
-                                                  lowers,
+                                                  initial,
                                                   uppers,
                                                   poly_coeffs,
                                                   size_box=size_box,
@@ -52,6 +40,24 @@ def solve(w, reputations):
         size_box = [1e-2 for i in range(n*k + 1)]
 
     return b_lower, b_upper, poly_coeffs
+
+def solve(w, reputations):
+    # infer number of bidders
+    n = reputations.size
+
+    # compute an array of lower and upper extremities
+    lowers = np.empty(n, dtype=np.float)
+    uppers = np.empty(n, dtype=np.float)
+
+    for i in np.arange(n):
+        r = reputations[i]
+        lowers[i] = (1-w) * r
+        uppers[i] = (1-w) * r + w
+
+    # estimate the upper bound on bids
+    b_upper = upper_bound_bids(lowers, uppers)
+
+    return solve_generic(lowers, uppers, b_upper)
 
 
 if __name__ == "__main__":
