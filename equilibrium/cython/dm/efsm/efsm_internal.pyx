@@ -157,6 +157,13 @@ cdef int add_extension(gsl_vector_const_view v_bids,
     return GSL_SUCCESS
 
 cdef int min_index(const gsl_vector * v, const double x) nogil:
+    """Finds the index of an element in a GSL vector matching
+    the value specified as x.
+
+    Arguments:
+    v -- input gsl vector of elements to search through
+    x -- searched element
+    """
     cdef gsl_vector * copy = gsl_vector_calloc(v.size)
     cdef int i, index
     cdef double y
@@ -176,8 +183,8 @@ cdef int min_index(const gsl_vector * v, const double x) nogil:
     return index
 
 cdef int estimate_k(double b, const gsl_vector * c_lowers) nogil:
-    """This function estimates the value of k(b).
-    See Algorithm 2.4 in Chapter 2 of the thesis for more information.
+    """Estimates the value of k(b). See Algorithm 2.4 in Chapter 2
+    of the thesis for more information.
 
     Arguments:
     b -- estimate of the lower bound on bids
@@ -255,7 +262,6 @@ def solve(lowers, uppers, bids):
 
     # estimate k
     k = estimate_k(bids[0], initial)
-    print(k)
 
     # try solving the system at instants in bids array
     status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k),
@@ -265,8 +271,7 @@ def solve(lowers, uppers, bids):
 
     assert_success(status)
 
-    if k < n:
-
+    while k < n:
         # compute bidding extension
         status = add_extension(gsl_vector_const_subvector(c_bids, 0, m),
                                gsl_matrix_submatrix(c_costs, 0, 0, m, k),
@@ -287,6 +292,9 @@ def solve(lowers, uppers, bids):
                            gsl_matrix_submatrix(c_costs, index, 0, m-index, n))
 
         assert_success(status)
+
+        # increment k
+        k += 1
 
     costs = np.empty((m, n), np.float)
 
