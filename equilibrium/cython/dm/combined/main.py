@@ -28,14 +28,15 @@ def solve(w, reputations):
     bids, costs = efsm.solve(w, reputations)
 
     # truncate solution derived by EFSM where k=n
-    min_i = np.argmin(np.absolute(np.copy(costs[n-1]) - lowers[n-1]))
+    min_i = np.argmin(np.absolute(np.copy(costs[-1]) - lowers[-1]))
     initial = costs.T[min_i,:]
+    b_lower = bids[min_i]
     length = bids.size - min_i
     bids = bids[:min_i]
     costs = costs[:,:min_i]
 
     # solve the system for k = n using PPM method
-    b_lower, b_upper, coeffs = ppm.solve_generic(initial, uppers, b_upper)
+    coeffs = ppm.fit(initial, uppers, b_lower, b_upper)
     bids_ = np.linspace(b_lower, b_upper, length)
 
     def cost_func(lower, cs, b):
@@ -54,7 +55,7 @@ def solve(w, reputations):
 if __name__ == "__main__":
     # set the scenario
     w = 0.55
-    reputations = np.array([0.25, 0.5, 0.75], dtype=np.float)
+    reputations = np.array([0.2, 0.4, 0.6, 0.8], dtype=np.float)
     n = reputations.size
 
     # approximate

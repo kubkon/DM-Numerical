@@ -11,6 +11,7 @@ ctypedef struct Tmin:
     int n, # number of bidders
     int k, # number of polynomial coefficients per bidder
     int granularity, # grid granularity
+    double b_lower, # lower bound on bids
     double b_upper, # upper bound on bids
     gsl_vector * lower_exts, # gsl_vector of lower extremities
     gsl_vector * upper_exts, # gsl_vector of upper extremities
@@ -294,6 +295,28 @@ cdef double min_f(const gsl_vector * v, void * params) nogil:
 
     return min_f_output
 
+cdef double min_f_fit(const gsl_vector * v, void * params) nogil:
+    # Extract minimization system
+    cdef Tmin * P = <Tmin *> params
+
+    # Extract polynomial coefficients
+    cdef int i
+    cdef int m = P.k * P.n
+    cdef double value, min_f_output
+
+    cdef gsl_vector * vs
+    vs = gsl_vector_alloc(m)
+
+    for i from 0 <= i < m:
+        value = gsl_vector_get(v, i)
+        gsl_vector_set(vs, i, value)
+
+    min_f_output = P.f(P.k, P.granularity, P.b_lower, P.b_upper, P.lower_exts, P.upper_exts, vs)
+
+    gsl_vector_free(vs)
+
+    return min_f_output
+
 
 def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granularity=100):
     # Get number of bidders
@@ -310,6 +333,7 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granula
     P.k = k
     P.n = n
     P.granularity = granularity
+    P.b_lower = 0
     P.b_upper = b_upper
 
     cdef gsl_vector * lower_exts
@@ -396,3 +420,104 @@ def solve (b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granula
     gsl_vector_free(upper_exts)
 
     return b_lower, poly_coeffs
+
+def solve_(b_lower, b_upper, lowers, uppers, poly_coeffs, size_box=None, granularity=100):
+    # Get number of bidders
+    cdef int n = len(lowers)
+    # Get number of polynomial coefficients per bidder
+    cdef int k = len(poly_coeffs[0])
+    # Flatten polynomial coefficients
+    poly_coeffs_flat = []
+    for p in poly_coeffs:
+        poly_coeffs_flat += p
+
+    # Initialize struct describing minimization system
+    cdef Tmin P
+    P.k = k
+    P.n = n
+    P.granularity = granularity
+    P.b_lower = b_lower
+    P.b_upper = b_upper
+
+    cdef gsl_vector * lower_exts
+    lower_exts = gsl_vector_alloc(n)
+    cdef gsl_vector * upper_exts
+    upper_exts = gsl_vector_alloc(n)
+
+    cdef int i
+    for i from 0 <= i < n:
+        gsl_vector_set(lower_exts, i, lowers[i])
+        gsl_vector_set(upper_exts, i, uppers[i])
+    P.lower_exts = lower_exts
+    P.upper_exts = upper_exts
+
+    P.f = c_objective_function
+
+    cdef gsl_multimin_function my_func
+    my_func.n = n*k
+    my_func.f = &min_f_fit
+    my_func.params = &P
+
+    cdef int iterator = 0
+    cdef int max_iter = 100000
+    cdef int status
+
+    cdef const gsl_multimin_fminimizer_type * T
+    cdef gsl_multimin_fminimizer * s
+    cdef gsl_vector * ss
+    cdef gsl_vector * x
+
+    # Starting point
+    x = gsl_vector_alloc(my_func.n)
+    gsl_vector_set(x, 0, b_lower)
+    for i from 0 <= i < my_func.n:
+        gsl_vector_set(x, i, poly_coeffs_flat[i])
+    
+    # Set initial step size
+    ss = gsl_vector_alloc(my_func.n)
+    if size_box:
+        for i from 0 <= i < my_func.n:
+            gsl_vector_set(ss, i, size_box[i])
+    else:
+        # If undefined, set to 0.1
+        gsl_vector_set_all(ss, 0.1)
+    
+    T = gsl_multimin_fminimizer_nmsimplex2
+    s = gsl_multimin_fminimizer_alloc(T, my_func.n)
+
+    gsl_multimin_fminimizer_set(s, &my_func, x, ss)
+
+    status = GSL_CONTINUE
+
+    # Minimize
+    while (status == GSL_CONTINUE and iterator < max_iter):
+        iterator += 1
+        status = gsl_multimin_fminimizer_iterate(s)
+
+        if status:
+            break
+
+        size = gsl_multimin_fminimizer_size(s)
+        status = gsl_multimin_test_size(size, 1e-8)
+
+        # printf("%5d %5.15f %.15f %.10f ", iterator,\
+        #         s.fval,\
+        #         size,\
+        #         gsl_vector_get(s.x, 0))
+
+        # for i from 1 <= i < my_func.n:
+        #     printf("%.10f ", gsl_vector_get(s.x, i))
+        # printf("\n")
+    
+    for i from 0 <= i < my_func.n:
+        poly_coeffs_flat[i] = gsl_vector_get(s.x, i)
+
+    poly_coeffs = [poly_coeffs_flat[j:j+k] for j in range(0, my_func.n, k)]
+
+    gsl_multimin_fminimizer_free(s)
+    gsl_vector_free(x)
+    gsl_vector_free(ss)
+    gsl_vector_free(lower_exts)
+    gsl_vector_free(upper_exts)
+
+    return poly_coeffs

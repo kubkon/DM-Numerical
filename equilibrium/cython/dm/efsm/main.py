@@ -92,7 +92,7 @@ if __name__ == "__main__":
     print("Estimated lower bound on bids: %r" % bids[0])
 
     # save the results in a file
-    with open('fsm.out', 'wt') as f:
+    with open('efsm.out', 'wt') as f:
         labels = ['w', 'reps', 'bids'] + ['costs_{}'.format(i) for i in range(n)]
         labels = ' '.join(labels)
         values = [w, reputations.tolist(), bids.tolist()] + [c.tolist() for c in costs]
