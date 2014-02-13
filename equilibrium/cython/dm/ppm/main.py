@@ -40,7 +40,6 @@ def fit(initial, uppers, b_lower, b_upper):
 
     return poly_coeffs
 
-
 def solve(w, reputations):
     # infer number of bidders
     n = reputations.size
