@@ -65,7 +65,7 @@ cdef int solve_ode(gsl_vector_const_view v_uppers,
     cdef const gsl_vector * initial = &v_initial.vector
     cdef const gsl_vector * bids = &v_bids.vector
     cdef gsl_matrix * costs = &v_costs.matrix
-
+    
     cdef int i, j
     cdef int m = bids.size
     cdef int n = initial.size
@@ -88,7 +88,7 @@ cdef int solve_ode(gsl_vector_const_view v_uppers,
     cdef double hstart, epsAbs, epsRel
     hstart = (gsl_vector_get(bids, 1) - gsl_vector_get(bids, 0)) / 100.0
     epsAbs = epsRel = 1.49012e-8
-
+    
     # intialize GSL driver
     cdef gsl_odeiv2_driver * d
     d = gsl_odeiv2_driver_alloc_y_new(
@@ -164,21 +164,16 @@ cdef int min_index(const gsl_vector * v, const double x) nogil:
     v -- input gsl vector of elements to search through
     x -- searched element
     """
-    cdef gsl_vector * copy = gsl_vector_calloc(v.size)
-    cdef int i, index
+    cdef int i, index = 0
     cdef double y
 
-    gsl_vector_memcpy(copy, v)
-
-    gsl_vector_add_constant(copy, (-1) * x)
-
     for i from 0 <= i < v.size:
-        y = gsl_vector_get(copy, i)
-        gsl_vector_set(copy, i, fabs(y))
+        y = gsl_vector_get(v, i)
 
-    index = gsl_vector_min_index(copy)
+        if y > x:
+            break
 
-    gsl_vector_free(copy)
+        index = i
 
     return index
 
@@ -262,30 +257,29 @@ def solve(lowers, uppers, bids):
 
     # estimate k
     k = estimate_k(bids[0], initial)
-    print("n=%d, k=%d" % (n,k))
 
-    while k <= n:
+    while True:
         # solve system at new initial conditions
         status = solve_ode(gsl_vector_const_subvector(c_uppers, 0, k),
                            gsl_vector_const_subvector(initial, 0, k),
                            gsl_vector_const_subvector(c_bids, index, m-index),
                            gsl_matrix_submatrix(c_costs, index, 0, m-index, k))
-        print("k=%d, index=%d" % (k,index))
         assert_success(status)
-       
-        if k < n: 
-            # compute bidding extension
-            status = add_extension(gsl_vector_const_subvector(c_bids, index, m-index),
-                                   gsl_matrix_submatrix(c_costs, index, 0, m-index, k),
-                                   gsl_matrix_submatrix(c_costs, index, k, m-index, n-k))
 
-            # find index of truncation
-            v = gsl_matrix_column(c_costs, k)
-            index = min_index(&v.vector, lowers[k])
+        if k == n:
+            break
 
-            # set new initial conditions
-            for j from 0 <= j < k+1:
-                gsl_vector_set(initial, j, gsl_matrix_get(c_costs, index, j))
+        # compute bidding extension
+        status = add_extension(gsl_vector_const_subvector(c_bids, index, m-index),
+                               gsl_matrix_submatrix(c_costs, index, 0, m-index, k),
+                               gsl_matrix_submatrix(c_costs, index, k, m-index, n-k))
+
+        # find index of truncation
+        v = gsl_matrix_column(c_costs, k)
+        index = min_index(&v.vector, lowers[k])
+        # set new initial conditions
+        for j from 0 <= j < n:
+            gsl_vector_set(initial, j, gsl_matrix_get(c_costs, index, j))
 
         # increment k
         k += 1
