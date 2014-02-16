@@ -219,10 +219,14 @@ def p_estimate_k(b, lowers):
 
     return k
 
-def assert_success(status):
+def assert_min_index(index, max_index):
+    if index == max_index:
+        msg = "Error, index of truncation exceeds permissible range\n"
+        raise Exception(msg)
+
+def assert_ode_solution(status):
     if status != GSL_SUCCESS:
         # if unsuccessful, raise an error
-        # FIX:ME define custom errors
         msg = "Error, return value=%d\n" % status
         raise Exception(msg)
 
@@ -264,7 +268,8 @@ def solve(lowers, uppers, bids):
                            gsl_vector_const_subvector(initial, 0, k),
                            gsl_vector_const_subvector(c_bids, index, m-index),
                            gsl_matrix_submatrix(c_costs, index, 0, m-index, k))
-        assert_success(status)
+        
+        assert_ode_solution(status)
 
         if k == n:
             break
@@ -277,6 +282,9 @@ def solve(lowers, uppers, bids):
         # find index of truncation
         v = gsl_matrix_column(c_costs, k)
         index = min_index(&v.vector, lowers[k])
+
+        assert_min_index(index, m-1)
+
         # set new initial conditions
         for j from 0 <= j < n:
             gsl_vector_set(initial, j, gsl_matrix_get(c_costs, index, j))
