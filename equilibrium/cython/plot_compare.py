@@ -7,7 +7,6 @@ import scipy.stats as ss
 
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
-from bajari.dists.main import skewnormal
 import util.util as util
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
@@ -34,10 +33,8 @@ params = []
 
 for i in np.arange(n):
     location = lowers[i] + w / 2
-    scale = w/4
-    shape = -1 if (i + 1) % 2 else 1
-    # shape = 0
-    params.append({'location': location, 'scale': scale, 'shape': shape})
+    scale = w / 4
+    params.append({'location': location, 'scale': scale})
 
 # compute approximations
 dm_bids, dm_costs = dm.solve(w, reputations)
@@ -50,10 +47,18 @@ bajari_costs, bajari_bids = util.ensure_monotonicity(bajari_costs, bajari_bids)
 # compute expected utilities for both auctions
 # 1. DM
 dm_params = [{'loc': lowers[i], 'scale': w} for i in np.arange(n)]
-dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, ss.uniform, dm_params)
+cdfs = [ss.uniform(**p) for p in dm_params]
+dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, cdfs)
 
 # 2. Bajari
-bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, skewnormal, params)
+cdfs = []
+for p in params:
+    loc = p['location']
+    scale = p['scale']
+    a = (support[0] - loc) / scale
+    b = (support[1] - loc) / scale
+    cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
+bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, cdfs)
 
 # interpolate using cubic splines and
 # compute KS statistic (distortion between the expected utilities)
@@ -159,11 +164,7 @@ for i in range(n):
 plt.figure()
 xs = np.linspace(support[0], support[1], 1000)
 
-funcs = []
-for p in params:
-  funcs.append(skewnormal(p['shape'], loc=p['location'], scale=p['scale']))
-
-for f in funcs:
+for f in cdfs:
     ys = [f.pdf(x) for x in xs]
     plt.plot(xs, ys, next(linecycle))
 
@@ -177,7 +178,7 @@ plt.savefig('pdfs_scenario.pdf')
 # 5. cdfs of the scenario
 plt.figure()
 
-for f in funcs:
+for f in cdfs:
     ys = [f.cdf(x) for x in xs]
     plt.plot(xs, ys, next(linecycle))
 

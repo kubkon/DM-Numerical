@@ -7,7 +7,7 @@ def solve(support, params):
 
     # set initial conditions for the PPM algorithm
     k = 3
-    K = 4
+    K = 5
     poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
     b_lower = support[0]
     size_box = [1e-1 for i in range(k*n + 1)]
@@ -41,9 +41,9 @@ def solve(support, params):
 if __name__ == '__main__':
     # set the scenario
     support = [2.0, 8.0]
-    params = [{'loc': 4.0, 'scale': 1.5, 'shape': 0},
-              {'loc': 5.0, 'scale': 1.5, 'shape': 0},
-              {'loc': 6.0, 'scale': 1.5, 'shape': 0}]
+    params = [{'loc': 4.0, 'scale': 1.5},
+              {'loc': 5.0, 'scale': 1.5},
+              {'loc': 6.0, 'scale': 1.5}]
     n = len(params)
 
     # approximate

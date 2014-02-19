@@ -3,7 +3,7 @@ from cython_gsl cimport *
 from libc.stdlib cimport calloc, free
 from libc.math cimport exp, sqrt, pow, erf
 
-from bajari.dists.dists cimport c_skew_normal_pdf, c_skew_normal_cdf
+from bajari.dists.dists cimport trunc_normal_pdf, trunc_normal_cdf
 
 import numpy as np
 
@@ -12,7 +12,8 @@ import numpy as np
 ctypedef struct DistParams:
     double location
     double scale
-    double shape
+    double a
+    double b
 
 # specifies the minimization system
 ctypedef struct Tmin:
@@ -47,7 +48,7 @@ cdef double c_cost_function(double b_lower,
     for i from 1 <= i < k:
         sums += gsl_vector_get(v, i) * pow(diff, i)
 
-    return b_lower - sums
+    return b_lower + sums
 
 def cost_function(b_lower, v, b):
     """
@@ -94,7 +95,7 @@ cdef double c_deriv_cost_function(double b_lower,
     for i from 2 <= i < k:
         sums += i * gsl_vector_get(v, i) * pow(diff, i-1)
 
-    return -1 * sums
+    return sums
 
 def deriv_cost_function(b_lower, v, b):
     """
@@ -192,7 +193,7 @@ cdef double c_objective_function(int n,
     # Generate grid of linearly spaced points
     cdef gsl_vector * grid
     cdef double b_upper = support[1]
-    grid = c_linspace(b_lower, b_upper, granularity)
+    grid = c_linspace(b_lower+1e-6, b_upper, granularity)
 
     # Compute first-order condition function over the grid
     # for each bidder
@@ -222,8 +223,8 @@ cdef double c_objective_function(int n,
             # Get cost value
             cost = c_cost_function(b_lower, v, b)
             # Calculate probabilities for bidder i
-            cdf = c_skew_normal_cdf(cost, dist_param.location, dist_param.scale, dist_param.shape)
-            pdf = c_skew_normal_pdf(cost, dist_param.location, dist_param.scale, dist_param.shape)
+            cdf = trunc_normal_cdf(cost, dist_param.location, dist_param.scale, dist_param.a, dist_param.b)
+            pdf = trunc_normal_pdf(cost, dist_param.location, dist_param.scale, dist_param.a, dist_param.b)
             prob = (1 - cdf) / pdf
             # Calculate first-order condition at b
             summed = 0
@@ -300,7 +301,8 @@ def solve (b_lower, support, params, poly_coeffs, size_box=None, granularity=100
     for i from 0 <= i < n:
         dist_params[i].location = params[i]['loc']
         dist_params[i].scale = params[i]['scale']
-        dist_params[i].shape = params[i]['shape']
+        dist_params[i].a = support[0]
+        dist_params[i].b = support[1]
     P.dist_params = dist_params
 
     cdef int supp_size = len(support)
@@ -315,7 +317,7 @@ def solve (b_lower, support, params, poly_coeffs, size_box=None, granularity=100
     my_func.params = &P
 
     cdef size_t iterator = 0
-    cdef int max_iter = 100000
+    cdef int max_iter = 10000
     cdef int status
 
     cdef const gsl_multimin_fminimizer_type * T

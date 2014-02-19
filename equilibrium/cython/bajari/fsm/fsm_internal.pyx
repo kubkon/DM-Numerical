@@ -3,7 +3,7 @@ from cython_gsl cimport *
 from libc.stdlib cimport calloc, free
 from libc.math cimport exp, sqrt, pow, erf
 
-from bajari.dists.dists cimport c_skew_normal_pdf, c_skew_normal_cdf
+from bajari.dists.dists cimport trunc_normal_pdf, trunc_normal_cdf 
 
 import numpy as np
 
@@ -12,7 +12,8 @@ import numpy as np
 ctypedef struct DistParams:
     double location
     double scale
-    double shape
+    double a
+    double b
 
 # struct specifying the system of ODE
 ctypedef struct Tode:
@@ -51,8 +52,8 @@ cdef int f(int n, DistParams * params, double t, double * y, double * f) nogil:
   # this loop corresponds to the system of equations (1.26) in the thesis
   for i from 0 <= i < n:
     param = params[i]
-    num = 1 - c_skew_normal_cdf(y[i], param.location, param.scale, param.shape)
-    den = c_skew_normal_pdf(y[i], param.location, param.scale, param.shape)
+    num = 1 - trunc_normal_cdf(y[i], param.location, param.scale, param.a, param.b)
+    den = trunc_normal_pdf(y[i], param.location, param.scale, param.a, param.b)
 
     if den == 0:
       return GSL_EZERODIV
@@ -92,7 +93,8 @@ def solve(params, support, bids):
   for i from 0 <= i < n:
     param.location = params[i]['location']
     param.scale = params[i]['scale']
-    param.shape = params[i]['shape']
+    param.a     = support[0]
+    param.b     = support[1]
     c_params[i] = param
 
   # initialize the struct describing system of ODEs

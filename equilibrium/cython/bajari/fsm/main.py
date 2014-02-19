@@ -18,7 +18,7 @@ def solve(support, params, granularity=10000):
     # on bids is found
     while high - low > epsilon:
         guess = 0.5 * (low + high)
-        bids = np.linspace(guess, support[1], num=num, endpoint=False)
+        bids = np.linspace(guess, support[1], num=num, endpoint=True)
         try:
             costs = fsm_internal.solve(params, support, bids).T
         except Exception:
@@ -50,9 +50,9 @@ def solve(support, params, granularity=10000):
 if __name__ == "__main__":
     # set the scenario
     support = [2, 8]
-    params = [{'location': 4.0, 'scale': 1.5, 'shape': 0},
-              {'location': 5.0, 'scale': 1.5, 'shape': 0},
-              {'location': 6.0, 'scale': 1.5, 'shape': 0}]
+    params = [{'location': 4.0, 'scale': 1.5},
+              {'location': 5.0, 'scale': 1.5},
+              {'location': 6.0, 'scale': 1.5}]
     n = len(params)
 
     # approximate

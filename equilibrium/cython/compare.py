@@ -5,7 +5,6 @@ import scipy.stats as ss
 
 import bajari.fsm.main as bajari
 import dm.fsm.main as dm
-from bajari.dists.main import skewnormal
 import util.util as util
 
 
@@ -15,13 +14,11 @@ parser.add_argument('--w', type=float, help='price weight')
 parser.add_argument('--reps', action='append', type=float, help='reputation array')
 parser.add_argument('--locs', action='append', type=float, help='distributions locations')
 parser.add_argument('--scales', action='append', type=float, help='distributions scales')
-parser.add_argument('--shapes', action='append', type=float, help='distributions shapes')
 args = parser.parse_args()
 w = args.w
 reputations = np.array(args.reps)
 locations = np.array(args.locs)
 scales = np.array(args.scales)
-shapes = np.array(args.shapes)
 
 # estimate lower and upper extremities
 n = reputations.size
@@ -34,7 +31,7 @@ for i in np.arange(n):
 # approximate the scenario as common support, differing
 # normal distributions
 support = [lowers[0], uppers[1]]
-bajari_params = [{'location': loc, 'scale': scale, 'shape': shape} for loc, scale, shape in zip(locations, scales, shapes)]
+bajari_params = [{'location': loc, 'scale': scale} for loc, scale in zip(locations, scales)]
 
 # compute approximations
 dm_bids, dm_costs = dm.solve(w, reputations)
@@ -47,10 +44,18 @@ bajari_costs, bajari_bids = util.ensure_monotonicity(bajari_costs, bajari_bids)
 # compute expected utilities for both auctions
 # 1. DM
 dm_params = [{'loc': lowers[i], 'scale': w} for i in np.arange(n)]
-dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, ss.uniform, dm_params)
+cdfs = [ss.uniform(**p) for p in dm_params]
+dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, cdfs)
 
 # 2. Bajari
-bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, skewnormal, bajari_params)
+cdfs = []
+for p in bajari_params:
+    loc = p['location']
+    scale = p['scale']
+    a = (support[0] - loc) / scale
+    b = (support[1] - loc) / scale
+    cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
+bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, cdfs)
 
 # fit polynomial curve to expected utility functions and
 # compute KS statistic (distortion between the expected utilities)

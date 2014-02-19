@@ -52,7 +52,7 @@ def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
 
     return sampled_costs, best_responses
 
-def estimate_winning_probs(costs, cdf, params):
+def estimate_winning_probs(costs, cdfs):
     # initialize
     shape = costs.shape
     probs = np.empty(shape, np.float)
@@ -62,21 +62,15 @@ def estimate_winning_probs(costs, cdf, params):
     for i in np.arange(n):
         # get index of the competing bidder
         j = (i+1) % 2
-        # extract cdf function
-        try:
-            prob_func = cdf(params[j]['shape'], loc=params[j]['location'], scale=params[j]['scale'])
-
-        except KeyError:
-            prob_func = cdf(**params[j])
 
         for k in np.arange(m):
-            probs[i][k] = 1 - prob_func.cdf(costs[i][k])
+            probs[i][k] = 1 - cdfs[j].cdf(costs[i][k])
 
     return probs
 
-def compute_expected_utilities(bids, costs, cdf, params):
+def compute_expected_utilities(bids, costs, cdfs):
     # compute probabilities of winning
-    probs = estimate_winning_probs(costs, cdf, params)
+    probs = estimate_winning_probs(costs, cdfs)
 
     # compute expected utilities
     exp_utilities = np.empty(costs.shape, np.float)

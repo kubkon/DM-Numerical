@@ -21,7 +21,6 @@ locs = [(1-w)*r + w/2 for r in reps]
 scales = np.linspace(w/5, w, num)
 # locs = [np.linspace((1-w)*r, (1-w)*r + w, num) for r in reps]
 # scales = [0.11, 0.11]
-shapes = [-1, 1]
 
 n = len(reps)
 
@@ -30,17 +29,15 @@ locs = list(repeat(locs, num))
 scales = list(zip(scales, scales))
 # locs = list(zip(*locs))
 # scales = list(repeat(scales, num))
-shapes = list(repeat(shapes, num))
 
 # prepare the subprocess commands
 cmds = []
 
-for zipped in zip(locs, scales, shapes):
+for zipped in zip(locs, scales):
     cmd = "python compare.py --w=%f" % w
     cmd += " --reps=%f --reps=%f" % tuple(reps)
     cmd += " --locs=%f --locs=%f" % tuple(zipped[0])
     cmd += " --scales=%f --scales=%f" % tuple(zipped[1])
-    cmd += " --shapes=%f --shapes=%f" % tuple(zipped[2])
     cmds.append(cmd)
 
 # run comparisons

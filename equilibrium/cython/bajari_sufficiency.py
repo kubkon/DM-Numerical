@@ -10,8 +10,7 @@ import matplotlib.pyplot as plt
 import scipy.stats as ss
 from matplotlib import rc
 
-from util import verify_sufficiency
-from bajari.dists.main import skewnormal
+from util.util import verify_sufficiency
 
 csv.field_size_limit(1000000000)
 
@@ -50,7 +49,11 @@ except KeyError:
 # Verify sufficiency
 cdfs = []
 for p in params:
-    cdfs.append(skewnormal(p['shape'], loc=p['location'], scale=p['scale']))
+    loc = p['location']
+    scale = p['scale']
+    a = (support[0] - loc) / scale
+    b = (support[1] - loc) / scale
+    cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
 
 try:
     step = len(bids) // 35
