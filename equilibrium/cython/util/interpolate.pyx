@@ -22,7 +22,7 @@ cdef class CubicSpline:
             self.c_ys[i] = ys[i]
 
         self.min_x = self.c_xs[0]
-        self.max_x = self.c_xs[n]
+        self.max_x = self.c_xs[n-1]
 
         self.acc = gsl_interp_accel_alloc()
         self.spline = gsl_spline_alloc(gsl_interp_cspline, n)
@@ -42,7 +42,8 @@ cdef class CubicSpline:
         free(self.c_xs)
 
     def evaluate(self, x):
-        if x < self.min_x and x > self.max_x:
+        if x < self.min_x or x > self.max_x:
             raise Exception("Exceeded interpolation range.")
 
         return gsl_spline_eval(self.spline, x, self.acc)
+

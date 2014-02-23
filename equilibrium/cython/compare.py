@@ -30,7 +30,7 @@ for i in np.arange(n):
 
 # approximate the scenario as common support, differing
 # normal distributions
-support = [lowers[0], uppers[1]]
+support = [lowers[0], uppers[-1]]
 bajari_params = [{'location': loc, 'scale': scale} for loc, scale in zip(locations, scales)]
 
 # compute approximations

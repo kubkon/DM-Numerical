@@ -28,7 +28,7 @@ for i in np.arange(n):
 
 # approximate the scenario as common support, differing
 # normal distributions
-support = [lowers[0], uppers[1]]
+support = [lowers[0], uppers[-1]]
 params = []
 
 for i in np.arange(n):
@@ -66,25 +66,30 @@ dm_exp_funcs = []
 bajari_exp_funcs = []
 ks_coords = []
 ks_values = []
+common_costs = []
 
 for i in np.arange(n):
     # fit
     dm_exp_func = util.csplinefit(dm_costs[i], dm_exp_utilities[i])
     bajari_exp_func = util.csplinefit(bajari_costs[i], bajari_exp_utilities[i])
-    # dm_exp_func = util.polyfit(dm_costs[i], dm_exp_utilities[i], degree=5)
-    # bajari_exp_func = util.polyfit(bajari_costs[i], bajari_exp_utilities[i], degree=5)
 
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)
 
     # compute KS statistics
-    costs = np.linspace(dm_costs[i][0], dm_costs[i][-1], 1000)
+    # we pick min upper cost since, due to the nature of FSM, the generated numerical solution
+    # might be a strict subset of the support, and hence, we might exceed the interpolation
+    # range; the interpolation and computation of K-S statistic is as such unaffected
+    costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
+    common_costs.append(costs)
     ks_x, ks_value = util.ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
     y1 = bajari_exp_func(np.array([ks_x]))
     y2 = dm_exp_func(np.array([ks_x]))
     coords = (ks_x, y1, y2) if y1 < y2 else (ks_x, y2, y1)
     ks_coords.append(coords)
     ks_values.append(ks_value)
+
+common_costs = np.array(common_costs)
 
 # plots
 # 1. equilibrium bids
@@ -124,25 +129,30 @@ plt.grid()
 plt.xlabel(r'Cost-hat, $\hat{c}_i$')
 plt.ylabel(r'Expected utility')
 plt.xlim(support)
-plt.legend(legend)
+plt.legend(["Bidder 1", "Bidder 1: Interpolated", "Bidder 2", "Bidder 2: Interpolated"])
 plt.savefig('dm_exp_utilities.pdf')
 
 plt.figure()
-for i in range(n):
-    plt.plot(bajari_costs[i][::200], bajari_exp_utilities[i][::200], next(markercycle))
-    plt.plot(bajari_costs[i], bajari_exp_funcs[i](bajari_costs[i]), next(linecycle))
+#for i in range(n):
+#    plt.plot(bajari_costs[i][::10], bajari_exp_utilities[i][::10], next(markercycle))
+#    plt.plot(bajari_costs[i], bajari_exp_funcs[i](bajari_costs[i]), next(linecycle))
+plt.plot(bajari_costs[0][::200], bajari_exp_utilities[0][::200], next(markercycle))
+plt.plot(bajari_costs[0], bajari_exp_funcs[0](bajari_costs[0]), next(linecycle))
+plt.plot(np.concatenate((bajari_costs[1][:3], bajari_costs[1][5:20:20], bajari_costs[1][20::200])), np.concatenate((bajari_exp_utilities[1][:3], bajari_exp_utilities[1][5:20:20], bajari_exp_utilities[1][20::200])), next(markercycle))
+plt.plot(bajari_costs[1], bajari_exp_funcs[1](bajari_costs[1]), next(linecycle))
+
 plt.grid()
 plt.xlabel(r'Cost, $c_i$')
 plt.ylabel(r'Expected utility')
 plt.xlim(support)
-plt.legend(legend)
+plt.legend(["Bidder 1", "Bidder 1: Interpolated", "Bidder 2", "Bidder 2: Interpolated"])
 plt.savefig('bajari_exp_utilities.pdf')
 
 # 3. expected utilities for corresponding bidders across two auctions
 for i in range(n):
     plt.figure()
-    plt.plot(dm_costs[i], dm_exp_funcs[i](dm_costs[i]), '-r')
-    plt.plot(dm_costs[i], bajari_exp_funcs[i](dm_costs[i]), '--b')
+    plt.plot(common_costs[i], dm_exp_funcs[i](common_costs[i]), '-r')
+    plt.plot(common_costs[i], bajari_exp_funcs[i](common_costs[i]), '--b')
     plt.annotate("",
                 xy=(ks_coords[i][0], ks_coords[i][1]),
                 xycoords="data",
@@ -150,14 +160,14 @@ for i in range(n):
                 textcoords="data",
                 arrowprops=dict(arrowstyle="<->"),
                 fontsize=8)
-    plt.annotate(r'$D(x) = %f$' % ks_values[i],
+    plt.annotate(r'$D_%d = %f$' % (i+1, ks_values[i]),
                  xy=(ks_coords[i][0], ks_coords[i][2] + 0.001),
                  xycoords="data",
                  fontsize=14)
     plt.grid()
-    plt.xlabel(r'Cost')
-    plt.ylabel(r'Expected utility')
-    plt.legend(list(map(lambda x: x + str(i+1), ['DM Bidder ', 'Bajari Bidder '])), loc='upper right')
+    plt.xlabel(r'Cost, $c_%d$' % (i+1))
+    plt.ylabel(r'Expected utility, $\Pi_%d(c_%d)$' % (i+1, i+1))
+    plt.legend(list(map(lambda x: x + str(i+1), ['DMP Bidder ', 'CP Bidder '])), loc='upper right')
     plt.savefig('compare_' + str(i+1) + '.pdf')
 
 # 4. pdfs of the scenario
