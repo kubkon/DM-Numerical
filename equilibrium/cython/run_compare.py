@@ -2,12 +2,18 @@ import argparse
 import ast
 from itertools import cycle, repeat
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import rc
 import subprocess as sub
 
+rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
+rc('text', usetex=True)
+matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
+
 # parse command line arguments
-parser = argparse.ArgumentParser(description="Compare auction models -- Helper script")
-parser.add_argument('num', type=int, help='number of scale values to consider')
+parser = argparse.ArgumentParser(description="Compare auction models -- helper script")
+parser.add_argument('num', type=int, help='number of price weight values to consider')
 parser.add_argument('--batch_size', dest='batch_size', default=8,
                     type=int, help='batch size for multiprocessing')
 args = parser.parse_args()
@@ -15,29 +21,16 @@ num = args.num
 batch_size = args.batch_size
 
 # prepare the scenario
-w = 0.5
-reps = [0.25, 0.75]
-locs = [(1-w)*r + w/2 for r in reps]
-scales = np.linspace(w/5, w, num)
-# locs = [np.linspace((1-w)*r, (1-w)*r + w, num) for r in reps]
-# scales = [0.11, 0.11]
-
+ws = np.linspace(0.5, 0.99, num)
+reps = [0.15, 0.75]
 n = len(reps)
-
-# unpack
-locs = list(repeat(locs, num))
-scales = list(zip(scales, scales))
-# locs = list(zip(*locs))
-# scales = list(repeat(scales, num))
 
 # prepare the subprocess commands
 cmds = []
 
-for zipped in zip(locs, scales):
-    cmd = "python compare.py --w=%f" % w
-    cmd += " --reps=%f --reps=%f" % tuple(reps)
-    cmd += " --locs=%f --locs=%f" % tuple(zipped[0])
-    cmd += " --scales=%f --scales=%f" % tuple(zipped[1])
+for w in ws:
+    cmd = "python compare.py --w=%r " % w
+    cmd += " ".join(["--reps=%r" % r for r in reps])
     cmds.append(cmd)
 
 # run comparisons
@@ -47,7 +40,8 @@ try:
     # one process at a time
     if batch_size == 1:
         for cmd in cmds:
-            output = ast.literal_eval(sub.check_output(cmd, shell=True).decode('utf-8').rstrip())
+            output = ast.literal_eval(sub.check_output(cmd, shell=True)
+                        .decode('utf-8').rstrip())
             results.append(output)
     # in batches
     else:
@@ -65,7 +59,8 @@ try:
 
         while True:
             for p in procs:
-                output = ast.literal_eval(p.communicate()[0].decode('utf-8').rstrip())
+                output = ast.literal_eval(p.communicate()[0]
+                            .decode('utf-8').rstrip())
                 results.append(output)
 
             if len(results) == repetitions:
@@ -83,20 +78,20 @@ except OSError as e:
 
 # plot
 plt.figure()
-styles = ['+b', 'xr']
+styles = ['+b', 'xr', 'og']
 styles_cycle = cycle(styles)
 
 for i in range(n):
     xs, ys = [], []
 
-    for s,r in zip(scales, results):
-        xs.append(s[i])
+    for w,r in zip(ws, results):
+        xs.append(w)
         ys.append(r[i])
 
     plt.plot(xs, ys, next(styles_cycle))
 
-plt.xlabel("Variance")
-plt.ylabel("Kolmogorov-Smirnov statistic")
+plt.xlabel(r"Price weight, $w$")
+plt.ylabel(r"Kolmogorov-Smirnov statistic, $D_i$")
 plt.grid()
-plt.legend(["Bidder %d" % i for i in range(n)], loc='upper left')
+plt.legend(["Bidder %d" % (i+1) for i in range(n)], loc='upper left')
 plt.savefig("compare.pdf")

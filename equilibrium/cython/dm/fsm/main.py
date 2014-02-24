@@ -33,7 +33,7 @@ def solve(w, reputations, granularity=10000):
     # on bids is found
     while high - low > epsilon:
         guess = 0.5 * (low + high)
-        bids = np.linspace(guess, b_upper-1e-6, num=num, endpoint=False)
+        bids = np.linspace(guess, b_upper, num=num, endpoint=False)
 
         try:
             costs = fsm_internal.solve(lowers, uppers, bids).T

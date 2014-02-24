@@ -15,8 +15,8 @@ matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
 
 
 # set the scenario
-w = 0.5
-reputations = np.array([0.25, 0.75], dtype=np.float)
+w = 0.6 + 1e-6
+reputations = np.array([0.5, 0.75], dtype=np.float)
 n = reputations.size
 
 # estimate lower and upper extremities

@@ -12,13 +12,9 @@ import util.util as util
 parser = argparse.ArgumentParser(description="Compare auction models")
 parser.add_argument('--w', type=float, help='price weight')
 parser.add_argument('--reps', action='append', type=float, help='reputation array')
-parser.add_argument('--locs', action='append', type=float, help='distributions locations')
-parser.add_argument('--scales', action='append', type=float, help='distributions scales')
 args = parser.parse_args()
 w = args.w
 reputations = np.array(args.reps)
-locations = np.array(args.locs)
-scales = np.array(args.scales)
 
 # estimate lower and upper extremities
 n = reputations.size
@@ -31,7 +27,12 @@ for i in np.arange(n):
 # approximate the scenario as common support, differing
 # normal distributions
 support = [lowers[0], uppers[-1]]
-bajari_params = [{'location': loc, 'scale': scale} for loc, scale in zip(locations, scales)]
+bajari_params = []
+
+for i in np.arange(n):
+    location = lowers[i] + w / 2
+    scale = w / 4
+    bajari_params.append({'location': location, 'scale': scale})
 
 # compute approximations
 dm_bids, dm_costs = dm.solve(w, reputations)
@@ -57,7 +58,7 @@ for p in bajari_params:
     cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
 bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, cdfs)
 
-# fit polynomial curve to expected utility functions and
+# interpolate (using splines) expected utility functions and
 # compute KS statistic (distortion between the expected utilities)
 dm_exp_funcs = []
 bajari_exp_funcs = []
@@ -72,7 +73,7 @@ for i in np.arange(n):
     bajari_exp_funcs.append(bajari_exp_func)
 
     # compute KS statistics
-    costs = np.linspace(dm_costs[i][0], dm_costs[i][-1], 1000)
+    costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
     _, ks_value = util.ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
     ks_values.append(ks_value)
 

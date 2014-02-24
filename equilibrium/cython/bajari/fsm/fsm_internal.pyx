@@ -121,6 +121,9 @@ def solve(params, support, bids):
   d = gsl_odeiv2_driver_alloc_y_new(
       &sys, gsl_odeiv2_step_rkf45,
       hstart, epsAbs, epsRel)
+  
+  # set maximum number of steps per bid evolution
+  gsl_odeiv2_driver_set_nmax(d, 1000)
 
   # populate y_i with initial conditions
   cdef double *y = <double *> calloc(n, sizeof(double))
