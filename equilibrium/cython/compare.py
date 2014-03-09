@@ -58,23 +58,23 @@ for p in bajari_params:
     cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
 bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, cdfs)
 
-# interpolate (using splines) expected utility functions and
-# compute KS statistic (distortion between the expected utilities)
-dm_exp_funcs = []
-bajari_exp_funcs = []
-ks_values = []
+# interpolate (using splines) expected utility functions,
+# compute KS statistic (distortion between the expected utilities), and
+# estimate percentage relative error
+errors = []
 
 for i in np.arange(n):
     # fit
     dm_exp_func = util.csplinefit(dm_costs[i], dm_exp_utilities[i])
     bajari_exp_func = util.csplinefit(bajari_costs[i], bajari_exp_utilities[i])
 
-    dm_exp_funcs.append(dm_exp_func)
-    bajari_exp_funcs.append(bajari_exp_func)
-
     # compute KS statistics
     costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
     _, ks_value = util.ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
-    ks_values.append(ks_value)
+    
+    # compute percentage relative error
+    denominator = abs(dm_exp_func(np.array([costs[0]]))[0] - dm_exp_func(np.array([costs[-1]]))[0])
+    error = ks_value / denominator * 100
+    errors.append(error)
 
-print(ks_values)
+print(errors)

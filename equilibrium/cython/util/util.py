@@ -115,11 +115,15 @@ def polyfit(xs, ys, degree=3, maxiter=500):
 
 def csplinefit(xs, ys):
     def inner(xss):
-        yss = np.empty(xss.size, np.float)
-
         with CubicSpline(xs, ys) as spline:
-            for i in np.arange(xss.size):
-                yss[i] = spline.evaluate(xss[i])
+            try:
+                yss = np.empty(xss.size, np.float)
+
+                for i in np.arange(xss.size):
+                    yss[i] = spline.evaluate(xss[i])
+
+            except IndexError:
+                yss = spline.evaluate(xss)
 
         return yss
 

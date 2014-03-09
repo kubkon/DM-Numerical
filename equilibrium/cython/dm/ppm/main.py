@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.polynomial.polynomial import polyval
 
 from dm.common import upper_bound_bids
 import dm.ppm.ppm_internal as ppm_internal
@@ -59,7 +60,7 @@ def solve(w, reputations):
     # set initial conditions for the PPM algorithm
     k = 3
     K = 8
-    poly_coeffs = [[1e-2 for i in range(k)] for j in range(n)]
+    poly_coeffs = [[1e-1 for i in range(k)] for j in range(n)]
     b_lower = lowers[1] + 1e-3
     size_box = [1e-1 for i in range(k*n + 1)]
 
@@ -88,6 +89,19 @@ def solve(w, reputations):
         size_box = [1e-2 for i in range(n*k + 1)]
 
     return b_lower, b_upper, poly_coeffs
+
+def solve_(w, reputations):
+    # estimate lower extremities
+    lowers = [(1-w) * r for r in reputations]
+
+    # solve for coefficients
+    b_lower, b_upper, css = solve(w, reputations)
+
+    # create bid and cost spaces
+    bids = np.linspace(b_lower, b_upper, 10000)
+    costs = np.array([polyval(bids-b_lower, [l]+cs) for l,cs in zip(lowers,css)])
+
+    return bids, costs
 
 if __name__ == "__main__":
     # set the scenario

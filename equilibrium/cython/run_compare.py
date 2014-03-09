@@ -21,8 +21,9 @@ num = args.num
 batch_size = args.batch_size
 
 # prepare the scenario
-ws = np.linspace(0.5, 0.99, num)
-reps = [0.15, 0.75]
+ws = np.linspace(0.75, 0.99, num)
+print(ws)
+reps = [0.73, 0.74, 0.75]
 n = len(reps)
 
 # prepare the subprocess commands
@@ -91,7 +92,7 @@ for i in range(n):
     plt.plot(xs, ys, next(styles_cycle))
 
 plt.xlabel(r"Price weight, $w$")
-plt.ylabel(r"Kolmogorov-Smirnov statistic, $D_i$")
+plt.ylabel(r"Percentage relative error, $\epsilon_i\cdot 100\%$")
 plt.grid()
-plt.legend(["Bidder %d" % (i+1) for i in range(n)], loc='upper left')
+plt.legend(["Bidder %d" % (i+1) for i in range(n)], loc='upper right')
 plt.savefig("compare.pdf")

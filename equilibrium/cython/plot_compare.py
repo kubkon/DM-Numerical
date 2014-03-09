@@ -1,12 +1,14 @@
 import itertools as its
 import numpy as np
+from numpy.polynomial.polynomial import polyval
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import scipy.stats as ss
 
 import bajari.fsm.main as bajari
-import dm.fsm.main as dm
+#import dm.fsm.main as dm
+import dm.ppm.main as dm
 import util.util as util
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
@@ -15,8 +17,8 @@ matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
 
 
 # set the scenario
-w = 0.6 + 1e-6
-reputations = np.array([0.5, 0.75], dtype=np.float)
+w = 0.8
+reputations = np.array([0.65, 0.7, 0.75], dtype=np.float)
 n = reputations.size
 
 # estimate lower and upper extremities
@@ -37,7 +39,8 @@ for i in np.arange(n):
     params.append({'location': location, 'scale': scale})
 
 # compute approximations
-dm_bids, dm_costs = dm.solve(w, reputations)
+#dm_bids, dm_costs = dm.solve(w, reputations)
+dm_bids, dm_costs = dm.solve_(w, reputations)
 bajari_bids, bajari_costs = bajari.solve(support, params)
 
 # ensure costs are monotonically increasing
@@ -94,8 +97,8 @@ common_costs = np.array(common_costs)
 # plots
 # 1. equilibrium bids
 plt.figure()
-linestyles = ['-r', '--b']
-markerstyles = ['.r', 'xb']
+linestyles = ['-r', '--b', '-.g']
+markerstyles = ['.r', 'xb', '+g']
 linecycle = its.cycle(linestyles)
 markercycle = its.cycle(markerstyles)
 legend = ['Bidder ' + str(i) for i in range(1, n+1)]
@@ -129,23 +132,24 @@ plt.grid()
 plt.xlabel(r'Cost-hat, $\hat{c}_i$')
 plt.ylabel(r'Expected utility')
 plt.xlim(support)
-plt.legend(["Bidder 1", "Bidder 1: Interpolated", "Bidder 2", "Bidder 2: Interpolated"])
+labels = [["Bidder {}".format(i+1), "Bidder {}: Interpolated".format(i+1)] for i in range(n)] 
+plt.legend(list(its.chain(*labels)))
 plt.savefig('dm_exp_utilities.pdf')
 
 plt.figure()
-#for i in range(n):
-#    plt.plot(bajari_costs[i][::10], bajari_exp_utilities[i][::10], next(markercycle))
-#    plt.plot(bajari_costs[i], bajari_exp_funcs[i](bajari_costs[i]), next(linecycle))
-plt.plot(bajari_costs[0][::200], bajari_exp_utilities[0][::200], next(markercycle))
-plt.plot(bajari_costs[0], bajari_exp_funcs[0](bajari_costs[0]), next(linecycle))
-plt.plot(np.concatenate((bajari_costs[1][:3], bajari_costs[1][5:20:20], bajari_costs[1][20::200])), np.concatenate((bajari_exp_utilities[1][:3], bajari_exp_utilities[1][5:20:20], bajari_exp_utilities[1][20::200])), next(markercycle))
-plt.plot(bajari_costs[1], bajari_exp_funcs[1](bajari_costs[1]), next(linecycle))
+for i in range(n):
+    plt.plot(bajari_costs[i][::200], bajari_exp_utilities[i][::200], next(markercycle))
+    plt.plot(bajari_costs[i], bajari_exp_funcs[i](bajari_costs[i]), next(linecycle))
+#plt.plot(bajari_costs[0][::200], bajari_exp_utilities[0][::200], next(markercycle))
+#plt.plot(bajari_costs[0], bajari_exp_funcs[0](bajari_costs[0]), next(linecycle))
+#plt.plot(np.concatenate((bajari_costs[1][:3], bajari_costs[1][5:20:20], bajari_costs[1][20::200])), np.concatenate((bajari_exp_utilities[1][:3], bajari_exp_utilities[1][5:20:20], bajari_exp_utilities[1][20::200])), next(markercycle))
+#plt.plot(bajari_costs[1], bajari_exp_funcs[1](bajari_costs[1]), next(linecycle))
 
 plt.grid()
 plt.xlabel(r'Cost, $c_i$')
 plt.ylabel(r'Expected utility')
 plt.xlim(support)
-plt.legend(["Bidder 1", "Bidder 1: Interpolated", "Bidder 2", "Bidder 2: Interpolated"])
+plt.legend(list(its.chain(*labels)))
 plt.savefig('bajari_exp_utilities.pdf')
 
 # 3. expected utilities for corresponding bidders across two auctions
