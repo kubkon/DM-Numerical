@@ -28,24 +28,24 @@ for i in np.arange(n):
 
 # approximate the scenario as common support, differing
 # normal distributions
-support = [lowers[0], uppers[-1]]
+support       = [lowers[0], uppers[-1]]
 bajari_params = []
 
 for i in np.arange(n):
     location = lowers[i] + w / 2
-    scale = w / 4
+    scale    = w / 4
     bajari_params.append({'location': location, 'scale': scale})
 
 # compute approximations
-dm_bids, dm_costs = dm.solve(w, reputations)
+dm_bids, dm_costs         = dm.solve(w, reputations)
 bajari_bids, bajari_costs = bajari.solve(support, bajari_params)
 
 # ensure costs are monotonically increasing
-dm_costs, dm_bids = util.ensure_monotonicity(dm_costs, dm_bids)
+dm_costs, dm_bids         = util.ensure_monotonicity(dm_costs, dm_bids)
 bajari_costs, bajari_bids = util.ensure_monotonicity(bajari_costs, bajari_bids)
 
 # interpolate bidding functions
-dm_bid_funcs = []
+dm_bid_funcs     = []
 bajari_bid_funcs = []
 
 for i in np.arange(n):
@@ -73,18 +73,14 @@ for p,i in zip(bajari_params, np.arange(n)):
     bajari_sampled_costs.append(ss.truncnorm.rvs(a, b, loc=loc, scale=scale, size=size))
 
 dm_prices = []
-prices = []
 for costs in zip(*dm_sampled_costs):
     bids = [dm_bid_funcs[i](costs[i]) for i in np.arange(n)]
     dm_prices.append(min(bids))
-    j = np.argmin(bids)
-    prices.append((bids[j] - (1-w)*reputations[j]) / w)
 
 bajari_prices = []
 for costs in zip(*bajari_sampled_costs):
     bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
     bajari_prices.append(min(bids))
 
-print(np.mean(dm_prices), np.mean(bajari_prices))
-print(np.mean(prices))
+print(np.mean(dm_prices) - np.mean(bajari_prices))
 

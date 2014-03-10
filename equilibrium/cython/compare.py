@@ -77,4 +77,44 @@ for i in np.arange(n):
     error = ks_value / denominator * 100
     errors.append(error)
 
-print(errors)
+# interpolate bidding functions
+dm_bid_funcs     = []
+bajari_bid_funcs = []
+
+for i in np.arange(n):
+    # fit
+    dm_bid_func     = util.csplinefit(dm_costs[i], dm_bids)
+    bajari_bid_func = util.csplinefit(bajari_costs[i], bajari_bids)
+
+    dm_bid_funcs.append(dm_bid_func)
+    bajari_bid_funcs.append(bajari_bid_func)
+
+# sample and generate prices for each auction
+size = 10000
+dm_sampled_costs = []
+dm_params = [{'loc': dm_costs[i][0], 'scale': dm_costs[i][-1]-dm_costs[i][0]} for i in np.arange(n)]
+for p in dm_params:
+    loc   = p['loc']
+    scale = p['scale']
+    dm_sampled_costs.append(ss.uniform.rvs(loc=loc, scale=scale, size=size))
+
+bajari_sampled_costs = []
+for p,i in zip(bajari_params, np.arange(n)):
+    loc   = p['location']
+    scale = p['scale']
+    a     = (bajari_costs[i][0] - loc) / scale
+    b     = (bajari_costs[i][-1] - loc) / scale
+    bajari_sampled_costs.append(ss.truncnorm.rvs(a, b, loc=loc, scale=scale, size=size))
+
+dm_prices = []
+for costs in zip(*dm_sampled_costs):
+    bids = [dm_bid_funcs[i](costs[i]) for i in np.arange(n)]
+    dm_prices.append(min(bids))
+
+bajari_prices = []
+for costs in zip(*bajari_sampled_costs):
+    bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
+    bajari_prices.append(min(bids))
+
+print([errors, np.mean(dm_prices) - np.mean(bajari_prices)])
+

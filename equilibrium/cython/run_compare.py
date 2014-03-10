@@ -21,9 +21,9 @@ num = args.num
 batch_size = args.batch_size
 
 # prepare the scenario
-ws = np.linspace(0.75, 0.99, num)
+ws = np.linspace(0.5, 0.99, num)
 print(ws)
-reps = [0.73, 0.74, 0.75]
+reps = [0.25, 0.75]
 n = len(reps)
 
 # prepare the subprocess commands
@@ -77,7 +77,7 @@ try:
 except OSError as e:
     print("Execution failed: ", e)
 
-# plot
+# plot errors in utilities
 plt.figure()
 styles = ['+b', 'xr', 'og']
 styles_cycle = cycle(styles)
@@ -87,7 +87,7 @@ for i in range(n):
 
     for w,r in zip(ws, results):
         xs.append(w)
-        ys.append(r[i])
+        ys.append(r[0][i])
 
     plt.plot(xs, ys, next(styles_cycle))
 
@@ -95,4 +95,18 @@ plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Percentage relative error, $\epsilon_i\cdot 100\%$")
 plt.grid()
 plt.legend(["Bidder %d" % (i+1) for i in range(n)], loc='upper right')
-plt.savefig("compare.pdf")
+plt.savefig("compare_utilities.pdf")
+
+# plot difference in prices
+plt.figure()
+
+xs, ys = [], []
+for w,r in zip(ws, results):
+    xs.append(w)
+    ys.append(r[1])
+
+plt.plot(xs, ys, '+b')
+plt.xlabel(r"Price weight, $w$")
+plt.ylabel(r"Difference in expected prices")
+plt.grid()
+plt.savefig("compare_prices.pdf")
