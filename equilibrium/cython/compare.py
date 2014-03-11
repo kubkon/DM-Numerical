@@ -116,5 +116,5 @@ for costs in zip(*bajari_sampled_costs):
     bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
     bajari_prices.append(min(bids))
 
-print([errors, np.mean(dm_prices) - np.mean(bajari_prices)])
+print([errors, (np.mean(bajari_prices) / np.mean(dm_prices)) * 100])
 

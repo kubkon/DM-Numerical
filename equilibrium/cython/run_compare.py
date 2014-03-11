@@ -21,9 +21,9 @@ num = args.num
 batch_size = args.batch_size
 
 # prepare the scenario
-ws = np.linspace(0.5, 0.99, num)
+ws = np.linspace(0.75, 0.99, num)
 print(ws)
-reps = [0.25, 0.75]
+reps = [0.65, 0.7, 0.75]
 n = len(reps)
 
 # prepare the subprocess commands
@@ -108,5 +108,6 @@ for w,r in zip(ws, results):
 plt.plot(xs, ys, '+b')
 plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Difference in expected prices")
+plt.ylim([75,125])
 plt.grid()
 plt.savefig("compare_prices.pdf")
