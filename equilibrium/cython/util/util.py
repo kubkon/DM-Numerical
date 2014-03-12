@@ -122,7 +122,7 @@ def csplinefit(xs, ys):
                 for i in np.arange(xss.size):
                     yss[i] = spline.evaluate(xss[i])
 
-            except IndexError:
+            except (AttributeError, IndexError):
                 yss = spline.evaluate(xss)
 
         return yss

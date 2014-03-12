@@ -67,8 +67,6 @@ bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs
 # compute KS statistic (distortion between the expected utilities)
 dm_exp_funcs = []
 bajari_exp_funcs = []
-ks_coords = []
-ks_values = []
 common_costs = []
 
 for i in np.arange(n):
@@ -79,18 +77,8 @@ for i in np.arange(n):
     dm_exp_funcs.append(dm_exp_func)
     bajari_exp_funcs.append(bajari_exp_func)
 
-    # compute KS statistics
-    # we pick min upper cost since, due to the nature of FSM, the generated numerical solution
-    # might be a strict subset of the support, and hence, we might exceed the interpolation
-    # range; the interpolation and computation of K-S statistic is as such unaffected
     costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
     common_costs.append(costs)
-    ks_x, ks_value = util.ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
-    y1 = bajari_exp_func(np.array([ks_x]))
-    y2 = dm_exp_func(np.array([ks_x]))
-    coords = (ks_x, y1, y2) if y1 < y2 else (ks_x, y2, y1)
-    ks_coords.append(coords)
-    ks_values.append(ks_value)
 
 common_costs = np.array(common_costs)
 
@@ -157,17 +145,6 @@ for i in range(n):
     plt.figure()
     plt.plot(common_costs[i], dm_exp_funcs[i](common_costs[i]), '-r')
     plt.plot(common_costs[i], bajari_exp_funcs[i](common_costs[i]), '--b')
-    plt.annotate("",
-                xy=(ks_coords[i][0], ks_coords[i][1]),
-                xycoords="data",
-                xytext=(ks_coords[i][0], ks_coords[i][2]),
-                textcoords="data",
-                arrowprops=dict(arrowstyle="<->"),
-                fontsize=8)
-    plt.annotate(r'$D_%d = %f$' % (i+1, ks_values[i]),
-                 xy=(ks_coords[i][0], ks_coords[i][2] + 0.001),
-                 xycoords="data",
-                 fontsize=14)
     plt.grid()
     plt.xlabel(r'Cost, $c_%d$' % (i+1))
     plt.ylabel(r'Expected utility, $\Pi_%d(c_%d)$' % (i+1, i+1))

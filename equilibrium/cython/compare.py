@@ -1,10 +1,12 @@
 import argparse
 import itertools as its
 import numpy as np
+import scipy.integrate as si
 import scipy.stats as ss
 
 import bajari.fsm.main as bajari
-import dm.fsm.main as dm
+#import dm.fsm.main as dm
+import dm.ppm.main as dm
 import util.util as util
 
 
@@ -35,7 +37,7 @@ for i in np.arange(n):
     bajari_params.append({'location': location, 'scale': scale})
 
 # compute approximations
-dm_bids, dm_costs = dm.solve(w, reputations)
+dm_bids, dm_costs = dm.solve_(w, reputations)
 bajari_bids, bajari_costs = bajari.solve(support, bajari_params)
 
 # ensure costs are monotonically increasing
@@ -45,24 +47,21 @@ bajari_costs, bajari_bids = util.ensure_monotonicity(bajari_costs, bajari_bids)
 # compute expected utilities for both auctions
 # 1. DM
 dm_params = [{'loc': lowers[i], 'scale': w} for i in np.arange(n)]
-cdfs = [ss.uniform(**p) for p in dm_params]
-dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, cdfs)
+dm_cdfs = [ss.uniform(**p) for p in dm_params]
+dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, dm_cdfs)
 
 # 2. Bajari
-cdfs = []
+bajari_cdfs = []
 for p in bajari_params:
     loc = p['location']
     scale = p['scale']
     a = (support[0] - loc) / scale
     b = (support[1] - loc) / scale
-    cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
-bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, cdfs)
+    bajari_cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
+bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, bajari_cdfs)
 
-# interpolate (using splines) expected utility functions,
-# compute KS statistic (distortion between the expected utilities), and
-# estimate percentage relative error
-errors = []
-
+# interpolate (using splines) expected utility functions
+utils = []
 for i in np.arange(n):
     # fit
     dm_exp_func = util.csplinefit(dm_costs[i], dm_exp_utilities[i])
@@ -70,12 +69,11 @@ for i in np.arange(n):
 
     # compute KS statistics
     costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
-    _, ks_value = util.ks_statistic(costs, bajari_exp_func(costs), dm_exp_func(costs))
-    
-    # compute percentage relative error
-    denominator = abs(dm_exp_func(np.array([costs[0]]))[0] - dm_exp_func(np.array([costs[-1]]))[0])
-    error = ks_value / denominator * 100
-    errors.append(error)
+
+    # compute ex-ante (average) expected utility
+    dm_util = si.quad(lambda x: dm_exp_func(x) * dm_cdfs[i].pdf(x), costs[0], costs[-1])
+    bajari_util = si.quad(lambda x: bajari_exp_func(x) * bajari_cdfs[i].pdf(x), costs[0], costs[-1])
+    utils.append(bajari_util[0] / dm_util[0] * 100)
 
 # interpolate bidding functions
 dm_bid_funcs     = []
@@ -116,5 +114,5 @@ for costs in zip(*bajari_sampled_costs):
     bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
     bajari_prices.append(min(bids))
 
-print([errors, (np.mean(bajari_prices) / np.mean(dm_prices)) * 100])
+print([utils, (np.mean(bajari_prices) / np.mean(dm_prices)) * 100])
 

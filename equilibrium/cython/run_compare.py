@@ -23,7 +23,7 @@ batch_size = args.batch_size
 # prepare the scenario
 ws = np.linspace(0.75, 0.99, num)
 print(ws)
-reps = [0.65, 0.7, 0.75]
+reps = [0.6, 0.7, 0.8]
 n = len(reps)
 
 # prepare the subprocess commands
@@ -92,7 +92,7 @@ for i in range(n):
     plt.plot(xs, ys, next(styles_cycle))
 
 plt.xlabel(r"Price weight, $w$")
-plt.ylabel(r"Percentage relative error, $\epsilon_i\cdot 100\%$")
+plt.ylabel(r"Difference in ex-ante expected utilities")
 plt.grid()
 plt.legend(["Bidder %d" % (i+1) for i in range(n)], loc='upper right')
 plt.savefig("compare_utilities.pdf")
