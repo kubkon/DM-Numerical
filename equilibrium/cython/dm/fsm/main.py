@@ -65,8 +65,8 @@ def solve(w, reputations, granularity=10000):
 
 if __name__ == "__main__":
     # set the scenario
-    w = 0.5
-    reputations = np.array([0.25, 0.75], dtype=np.float)
+    w = 0.75
+    reputations = np.array([0.25, 0.7, 0.75], dtype=np.float)
     n = reputations.size
 
     # approximate

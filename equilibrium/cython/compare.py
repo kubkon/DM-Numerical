@@ -5,8 +5,7 @@ import scipy.integrate as si
 import scipy.stats as ss
 
 import bajari.fsm.main as bajari
-#import dm.fsm.main as dm
-import dm.ppm.main as dm
+import dm.fsm.main as dm
 import util.util as util
 
 
@@ -37,7 +36,7 @@ for i in np.arange(n):
     bajari_params.append({'location': location, 'scale': scale})
 
 # compute approximations
-dm_bids, dm_costs = dm.solve_(w, reputations)
+dm_bids, dm_costs = dm.solve(w, reputations)
 bajari_bids, bajari_costs = bajari.solve(support, bajari_params)
 
 # ensure costs are monotonically increasing
@@ -67,7 +66,6 @@ for i in np.arange(n):
     dm_exp_func = util.csplinefit(dm_costs[i], dm_exp_utilities[i])
     bajari_exp_func = util.csplinefit(bajari_costs[i], bajari_exp_utilities[i])
 
-    # compute KS statistics
     costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
 
     # compute ex-ante (average) expected utility

@@ -1,5 +1,6 @@
 import argparse
 import ast
+import csv
 from itertools import cycle, repeat
 import numpy as np
 import matplotlib
@@ -13,17 +14,14 @@ matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description="Compare auction models -- helper script")
-parser.add_argument('num', type=int, help='number of price weight values to consider')
 parser.add_argument('--batch_size', dest='batch_size', default=8,
                     type=int, help='batch size for multiprocessing')
 args = parser.parse_args()
-num = args.num
 batch_size = args.batch_size
 
 # prepare the scenario
-ws = np.linspace(0.75, 0.99, num)
-print(ws)
-reps = [0.6, 0.7, 0.8]
+ws = [0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.99]
+reps = [0.25, 0.75]
 n = len(reps)
 
 # prepare the subprocess commands
@@ -76,6 +74,14 @@ try:
 
 except OSError as e:
     print("Execution failed: ", e)
+
+# save results to files
+with open("compare.csv", "wt") as f:
+    writer = csv.writer(f)
+    writer.writerow(["w", "price"] + ["bidder_{}".format(i) for i in range(n)])
+    
+    for w,r in zip(ws, results):
+        writer.writerow([w, r[1]] + r[0])
 
 # plot errors in utilities
 plt.figure()

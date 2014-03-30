@@ -1,4 +1,5 @@
 import os
+import sys
 
 import numpy as np
 
@@ -6,7 +7,7 @@ from dm.common import upper_bound_bids
 import dm.efsm.efsm_internal as efsm_internal
 
 
-def solve(w, reputations, granularity=10000):
+def solve(w, reputations, granularity=10000, param=1e-6):
     # infer number of bidders
     n = reputations.size
 
@@ -31,28 +32,17 @@ def solve(w, reputations, granularity=10000):
 
     # run the FSM algorithm until the estimate of the lower bound
     # on bids is found
-    param = 1e-3
     while high - low > epsilon:
         guess = 0.5 * (low + high)
         bids = np.linspace(guess, b_upper-param, num=num, endpoint=False)
 
-        # pre-estimate k
-        k = efsm_internal.p_estimate_k(guess, lowers)
-
         # solve the system
         try:
-            print("guess=%f, b_upper=%f" % (guess, b_upper-param))
+            #print("guess=%f, b_upper=%f" % (guess, b_upper-param))
             costs = efsm_internal.solve(lowers, uppers, bids).T
 
         except Exception:
-            if k == n:
-                # we are dealing with standard FSM
-                # set low to guess and continue
-                low = guess
-            else:
-                # extended FSM
-                # increment param
-                param += 1e-6
+            param += 1e-6
             continue
 
         # modify array of lower extremities to account for the bidding
@@ -74,7 +64,7 @@ def solve(w, reputations, granularity=10000):
             low = guess
 
     try:
-        print("Param=%f" % param)
+        #print("Param=%f" % param)
 
         return bids, costs
 
@@ -83,13 +73,15 @@ def solve(w, reputations, granularity=10000):
         
 
 if __name__ == "__main__":
+    param = float(sys.argv[1])
+
     # set the scenario
     w = 0.55
-    reputations = np.array([0.2, 0.4, 0.6, 0.8], dtype=np.float)
+    reputations = np.array([0.25, 0.7, 0.75], dtype=np.float)
     n = reputations.size
 
     # approximate
-    bids, costs = solve(w, reputations)
+    bids, costs = solve(w, reputations, param=param)
 
     print("Estimated lower bound on bids: %r" % bids[0])
 
