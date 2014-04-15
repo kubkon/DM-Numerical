@@ -5,7 +5,7 @@ import scipy.integrate as si
 import scipy.stats as ss
 
 import bajari.fsm.main as bajari
-import dm.fsm.main as dm
+import dm.efsm.main as dm
 import util.util as util
 
 
@@ -13,9 +13,11 @@ import util.util as util
 parser = argparse.ArgumentParser(description="Compare auction models")
 parser.add_argument('--w', type=float, help='price weight')
 parser.add_argument('--reps', action='append', type=float, help='reputation array')
+parser.add_argument('--param', type=float, help='param')
 args = parser.parse_args()
 w = args.w
 reputations = np.array(args.reps)
+param = args.param
 
 # estimate lower and upper extremities
 n = reputations.size
@@ -36,7 +38,7 @@ for i in np.arange(n):
     bajari_params.append({'location': location, 'scale': scale})
 
 # compute approximations
-dm_bids, dm_costs = dm.solve(w, reputations)
+dm_bids, dm_costs = dm.solve(w, reputations, param=param)
 bajari_bids, bajari_costs = bajari.solve(support, bajari_params)
 
 # ensure costs are monotonically increasing

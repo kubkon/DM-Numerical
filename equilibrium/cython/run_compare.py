@@ -20,15 +20,21 @@ args = parser.parse_args()
 batch_size = args.batch_size
 
 # prepare the scenario
-ws = [0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.99]
-reps = [0.25, 0.75]
+ws = [0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,0.99]
+#params = [1e-3,1e-4,1e-5,1e-6,2e-5,2e-5,1e-5,3e-4,5.099999999999995e-05,1e-4]
+#reps = [0.25, 0.5, 0.75]
+#params = [1e-06,4.9999999999999996e-06,0.00205,0.0003,0.00055,0.002,0.0025,0.000001,1e-06,0.000001]
+#reps = [0.65, 0.7, 0.75]
+params = [9e-06,0.000101,0.000314,0.0002,0.0002,7.09999999999999e-05,5.099999999999995e-05,2e-06,1e-06,4.9999999999999996e-06]
+reps = [0.25, 0.7, 0.75]
 n = len(reps)
 
 # prepare the subprocess commands
 cmds = []
 
-for w in ws:
-    cmd = "python compare.py --w=%r " % w
+for w,p in zip(ws, params):
+    cmd =  "python compare.py --w=%r " % w
+    cmd += "--param=%r " % p
     cmd += " ".join(["--reps=%r" % r for r in reps])
     cmds.append(cmd)
 
