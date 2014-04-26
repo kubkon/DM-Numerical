@@ -5,7 +5,6 @@ import scipy.integrate as si
 import scipy.stats as ss
 
 import bajari.fsm.main as bajari
-import dm.efsm.main as dm
 import util.util as util
 
 
@@ -19,16 +18,21 @@ w = args.w
 reputations = np.array(args.reps)
 param = args.param
 
-# estimate lower and upper extremities
+# load appropriate version of FSM method
 n = reputations.size
+if n == 2:
+    import dm.fsm.main as dm
+else:
+    import dm.efsm.main as dm
+
+# estimate lower and upper extremities
 lowers = np.empty(n, dtype=np.float)
 uppers = np.empty(n, dtype=np.float)
 for i in np.arange(n):
     lowers[i] = (1-w) * reputations[i]
     uppers[i] = (1-w) * reputations[i] + w
 
-# approximate the scenario as common support, differing
-# normal distributions
+# pick parameters for the common support case
 support = [lowers[0], uppers[-1]]
 bajari_params = []
 
@@ -37,8 +41,12 @@ for i in np.arange(n):
     scale = w / 4
     bajari_params.append({'location': location, 'scale': scale})
 
-# compute approximations
-dm_bids, dm_costs = dm.solve(w, reputations, param=param)
+# compute equilibrium bidding functions
+if n == 2:
+    dm_bids, dm_costs = dm.solve(w, reputations)
+else:
+    dm_bids, dm_costs = dm.solve(w, reputations, param=param)
+
 bajari_bids, bajari_costs = bajari.solve(support, bajari_params)
 
 # ensure costs are monotonically increasing
@@ -52,17 +60,11 @@ dm_cdfs = [ss.uniform(**p) for p in dm_params]
 dm_exp_utilities = util.compute_expected_utilities(dm_bids, dm_costs, dm_cdfs)
 
 # 2. Bajari
-bajari_cdfs = []
-for p in bajari_params:
-    loc = p['location']
-    scale = p['scale']
-    a = (support[0] - loc) / scale
-    b = (support[1] - loc) / scale
-    bajari_cdfs.append(ss.truncnorm(a, b, loc=loc, scale=scale))
-bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, bajari_cdfs)
+bajari_exp_utilities = util.compute_expected_utilities(bajari_bids, bajari_costs, dm_cdfs)
 
 # interpolate (using splines) expected utility functions
-utils = []
+dm_utils = []
+bajari_utils = []
 for i in np.arange(n):
     # fit
     dm_exp_func = util.csplinefit(dm_costs[i], dm_exp_utilities[i])
@@ -72,8 +74,9 @@ for i in np.arange(n):
 
     # compute ex-ante (average) expected utility
     dm_util = si.quad(lambda x: dm_exp_func(x) * dm_cdfs[i].pdf(x), costs[0], costs[-1])
-    bajari_util = si.quad(lambda x: bajari_exp_func(x) * bajari_cdfs[i].pdf(x), costs[0], costs[-1])
-    utils.append(bajari_util[0] / dm_util[0] * 100)
+    bajari_util = si.quad(lambda x: bajari_exp_func(x) * dm_cdfs[i].pdf(x), costs[0], costs[-1])
+    dm_utils.append(dm_util[0])
+    bajari_utils.append(bajari_util[0])
 
 # interpolate bidding functions
 dm_bid_funcs     = []
@@ -96,23 +99,18 @@ for p in dm_params:
     scale = p['scale']
     dm_sampled_costs.append(ss.uniform.rvs(loc=loc, scale=scale, size=size))
 
-bajari_sampled_costs = []
-for p,i in zip(bajari_params, np.arange(n)):
-    loc   = p['location']
-    scale = p['scale']
-    a     = (bajari_costs[i][0] - loc) / scale
-    b     = (bajari_costs[i][-1] - loc) / scale
-    bajari_sampled_costs.append(ss.truncnorm.rvs(a, b, loc=loc, scale=scale, size=size))
-
 dm_prices = []
 for costs in zip(*dm_sampled_costs):
     bids = [dm_bid_funcs[i](costs[i]) for i in np.arange(n)]
     dm_prices.append(min(bids))
 
 bajari_prices = []
-for costs in zip(*bajari_sampled_costs):
+for costs in zip(*dm_sampled_costs):
     bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
     bajari_prices.append(min(bids))
 
-print([utils, (np.mean(bajari_prices) / np.mean(dm_prices)) * 100])
+print(dm_utils)
+print(bajari_utils)
+print(np.mean(dm_prices))
+print(np.mean(bajari_prices))
 
