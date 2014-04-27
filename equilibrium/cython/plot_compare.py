@@ -72,12 +72,7 @@ bajari_utils = []
 
 dm_exp_funcs     = []
 bajari_exp_funcs = []
-common_costs     = []
 for i in np.arange(n):
-    # common costs
-    costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
-    common_costs.append(costs)
-
     # derive expected utility functions
     j = (i+1) % 2
     def dm_exp_util(x):
@@ -95,10 +90,12 @@ for i in np.arange(n):
     bajari_exp_funcs.append(bajari_exp_util)
 
     # compute ex-ante expected utilities
-    dm_util     = si.quad(lambda x: dm_exp_util(x) * cdfs[i].pdf(x), costs[0], costs[-1])
-    bajari_util = si.quad(lambda x: bajari_exp_util(x) * cdfs[i].pdf(x), costs[0], costs[-1])
-    dm_utils.append(dm_util[0])
-    bajari_utils.append(bajari_util[0])
+    dm_utilities     = np.array([dm_exp_util(x) * cdfs[i].pdf(x) for x in dm_costs[i]])
+    bajari_utilities = np.array([bajari_exp_util(x) * cdfs[i].pdf(x) for x in dm_costs[i]])
+    dm_util     = si.simps(dm_utilities, dm_costs[i])
+    bajari_util = si.simps(bajari_utilities, dm_costs[i])
+    dm_utils.append(dm_util)
+    bajari_utils.append(bajari_util)
 
 # sample and generate prices for each auction
 size = 10000
@@ -130,8 +127,8 @@ for i in np.arange(n):
     bajari_f = bajari_exp_funcs[i]
 
     plt.figure()
-    plt.plot(common_costs[i], [dm_f(x) for x in common_costs[i]], '-r')
-    plt.plot(common_costs[i], [bajari_f(x) for x in common_costs[i]], '--b')
+    plt.plot(dm_costs[i], [dm_f(x) for x in dm_costs[i]], '-r')
+    plt.plot(dm_costs[i], [bajari_f(x) for x in dm_costs[i]], '--b')
     xlabel = "Cost, $c_{}$".format(i+1)
     ylabel = "Expected utility, $\Pi_{}(c_{})$".format(i+1, i+1)
     plt.xlabel(r"" + xlabel)

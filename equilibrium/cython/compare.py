@@ -77,15 +77,7 @@ cdfs   = [ss.uniform(**p) for p in params]
 
 dm_utils     = []
 bajari_utils = []
-
-dm_exp_funcs     = []
-bajari_exp_funcs = []
-common_costs     = []
 for i in np.arange(n):
-    # common costs
-    costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
-    common_costs.append(costs)
-
     # derive expected utility functions
     js = [j for j in np.arange(n) if j != i]
     def dm_exp_util(x):
@@ -93,20 +85,18 @@ for i in np.arange(n):
         probs = [(1 - cdfs[j].cdf(dm_inverses[j](bid))) for j in js]
         return (bid - x) * reduce(lambda x,y: x*y, probs)
     
-    dm_exp_funcs.append(dm_exp_util)
-
     def bajari_exp_util(x):
         bid   = bajari_bid_funcs[i](x) 
         probs = [(1 - cdfs[j].cdf(bajari_inverses[j](bid))) for j in js]
         return (bid - x) * reduce(lambda x,y: x*y, probs)
 
-    bajari_exp_funcs.append(bajari_exp_util)
-
     # compute ex-ante expected utilities
-    dm_util     = si.quad(lambda x: dm_exp_util(x) * cdfs[i].pdf(x), costs[0], costs[-1])
-    bajari_util = si.quad(lambda x: bajari_exp_util(x) * cdfs[i].pdf(x), costs[0], costs[-1])
-    dm_utils.append(dm_util[0])
-    bajari_utils.append(bajari_util[0])
+    dm_utilities     = np.array([dm_exp_util(x) * cdfs[i].pdf(x) for x in dm_costs[i]])
+    bajari_utilities = np.array([bajari_exp_util(x) * cdfs[i].pdf(x) for x in dm_costs[i]])
+    dm_util     = si.simps(dm_utilities, dm_costs[i])
+    bajari_util = si.simps(bajari_utilities, dm_costs[i])
+    dm_utils.append(dm_util)
+    bajari_utils.append(bajari_util)
 
 # sample and generate prices for each auction
 size = 10000
