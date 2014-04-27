@@ -77,7 +77,12 @@ cdfs   = [ss.uniform(**p) for p in params]
 
 dm_utils     = []
 bajari_utils = []
+common_costs = []
 for i in np.arange(n):
+    # common costs
+    costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
+    common_costs.append(costs)
+
     # derive expected utility functions
     js = [j for j in np.arange(n) if j != i]
     def dm_exp_util(x):
@@ -91,17 +96,17 @@ for i in np.arange(n):
         return (bid - x) * reduce(lambda x,y: x*y, probs)
 
     # compute ex-ante expected utilities
-    dm_utilities     = np.array([dm_exp_util(x) * cdfs[i].pdf(x) for x in dm_costs[i]])
-    bajari_utilities = np.array([bajari_exp_util(x) * cdfs[i].pdf(x) for x in dm_costs[i]])
-    dm_util     = si.simps(dm_utilities, dm_costs[i])
-    bajari_util = si.simps(bajari_utilities, dm_costs[i])
+    dm_utilities     = np.array([dm_exp_util(x) * cdfs[i].pdf(x) for x in costs])
+    bajari_utilities = np.array([bajari_exp_util(x) * cdfs[i].pdf(x) for x in costs])
+    dm_util     = si.simps(dm_utilities, costs)
+    bajari_util = si.simps(bajari_utilities, costs)
     dm_utils.append(dm_util)
     bajari_utils.append(bajari_util)
 
 # sample and generate prices for each auction
 size = 10000
 sampled_costs = []
-params = [{'loc': dm_costs[i][0], 'scale': dm_costs[i][-1]-dm_costs[i][0]} for i in np.arange(n)]
+params = [{'loc': common_costs[i][0], 'scale': common_costs[i][-1]-common_costs[i][0]} for i in np.arange(n)]
 for p in params:
     loc   = p['loc']
     scale = p['scale']
@@ -117,7 +122,10 @@ for costs in zip(*sampled_costs):
     bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
     bajari_prices.append(min(bids))
 
-print(dm_utils)
-print(bajari_utils)
-print(np.mean(dm_prices))
-print(np.mean(bajari_prices))
+results = {'utilities':
+                {'dm': dm_utils,
+                 'cp': bajari_utils},
+           'prices':
+                {'dm': np.mean(dm_prices),
+                 'cp': np.mean(bajari_prices)}}
+print(results)

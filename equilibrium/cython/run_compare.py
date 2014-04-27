@@ -82,44 +82,11 @@ except OSError as e:
     print("Execution failed: ", e)
 
 # save results to files
-with open("compare.csv", "wt") as f:
-    writer = csv.writer(f)
-    writer.writerow(["w", "price"] + ["bidder_{}".format(i) for i in range(n)])
+for t in ['dm', 'cp']:
+    with open("compare_%s.csv" % t, "wt") as f:
+        writer = csv.writer(f)
+        writer.writerow(["w", "price"] + ["bidder_{}".format(i+1) for i in range(n)])
     
-    for w,r in zip(ws, results):
-        writer.writerow([w, r[1]] + r[0])
+        for w,r in zip(ws, results):
+            writer.writerow([w, r['prices'][t]] + r['utilities'][t])
 
-# plot errors in utilities
-plt.figure()
-styles = ['+b', 'xr', 'og']
-styles_cycle = cycle(styles)
-
-for i in range(n):
-    xs, ys = [], []
-
-    for w,r in zip(ws, results):
-        xs.append(w)
-        ys.append(r[0][i])
-
-    plt.plot(xs, ys, next(styles_cycle))
-
-plt.xlabel(r"Price weight, $w$")
-plt.ylabel(r"Difference in ex-ante expected utilities")
-plt.grid()
-plt.legend(["Bidder %d" % (i+1) for i in range(n)], loc='upper right')
-plt.savefig("compare_utilities.pdf")
-
-# plot difference in prices
-plt.figure()
-
-xs, ys = [], []
-for w,r in zip(ws, results):
-    xs.append(w)
-    ys.append(r[1])
-
-plt.plot(xs, ys, '+b')
-plt.xlabel(r"Price weight, $w$")
-plt.ylabel(r"Difference in expected prices")
-plt.ylim([75,125])
-plt.grid()
-plt.savefig("compare_prices.pdf")
