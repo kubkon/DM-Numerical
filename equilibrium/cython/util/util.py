@@ -52,34 +52,6 @@ def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
 
     return sampled_costs, best_responses
 
-def estimate_winning_probs(costs, cdfs):
-    # initialize
-    shape = costs.shape
-    probs = np.empty(shape, np.float)
-    n, m = shape[0], shape[1]
-
-    # compute probabilities
-    for i in np.arange(n):
-        # get index of the competing bidder
-        j = (i+1) % 2
-
-        for k in np.arange(m):
-            probs[i][k] = 1 - cdfs[j].cdf(costs[i][k])
-
-    return probs
-
-def compute_expected_utilities(bids, costs, cdfs):
-    # compute probabilities of winning
-    probs = estimate_winning_probs(costs, cdfs)
-
-    # compute expected utilities
-    exp_utilities = np.empty(costs.shape, np.float)
-
-    for i in np.arange(costs.shape[0]):
-        exp_utilities[i] = np.multiply((bids - costs[i]), probs[i])
-    
-    return exp_utilities
-
 def ensure_monotonicity(costs, bids):
     n, m = costs.shape
     indices = [m]
@@ -94,20 +66,6 @@ def ensure_monotonicity(costs, bids):
     max_index = np.amin(indices)
 
     return costs[:max_index, :max_index], bids[:max_index]
-
-def ks_statistic(xs, func1, func2):
-    # initialize
-    n = xs.size
-    differences = np.empty(n, np.float)
-
-    # compute differences between functions for each x
-    for i in np.arange(n):
-        differences[i] = np.absolute(func1[i] - func2[i])
-
-    # compute argmax of the differences
-    max_index = np.argmax(differences)
-
-    return (xs[max_index], differences[max_index])
 
 def polyfit(xs, ys, degree=3, maxiter=500):
     coeffs = fit(xs, ys, num_coeffs=(degree+1), maxiter=maxiter)

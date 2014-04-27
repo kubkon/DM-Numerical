@@ -101,7 +101,7 @@ for i in np.arange(n):
     bajari_utils.append(bajari_util[0])
 
 # sample and generate prices for each auction
-size = 100
+size = 10000
 sampled_costs = []
 params = [{'loc': dm_costs[i][0], 'scale': dm_costs[i][-1]-dm_costs[i][0]} for i in np.arange(n)]
 for p in params:
