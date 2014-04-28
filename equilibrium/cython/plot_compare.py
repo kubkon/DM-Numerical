@@ -48,12 +48,20 @@ for key in keys:
             util_errors.setdefault(key, []).append(err)
 
 # regress
-def nonlinear_model(xs, a, b, c, d):
-    return a * np.power(xs, 3) + b * np.power(xs, 2) + c * xs + d
+def nonlinear_model(xs, *params):
+    n = len(params)
+    r_params = params[::-1]
+    ys = np.ones(len(xs), np.float) * params[0]
+
+    for i in np.arange(1, n):
+        ys += np.power(xs, i) * params[i]
+
+    return ys
 
 util_errors_params = {}
 for key in util_errors:
-    params, _ = curve_fit(nonlinear_model, parsed_dm['w'], util_errors[key])
+    init = np.ones(5, np.float) * 0.1
+    params, _ = curve_fit(nonlinear_model, parsed_dm['w'], util_errors[key], init)
     util_errors_params[key] = params
 
 def linear_model(xs, *params):
