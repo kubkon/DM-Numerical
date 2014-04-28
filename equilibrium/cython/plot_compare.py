@@ -5,7 +5,10 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import rc
+from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 import os
+
 
 rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
 rc('text', usetex=True)
@@ -43,21 +46,32 @@ for key in keys:
         else:
             util_errors.setdefault(key, []).append(err)
 
-plt.figure()
-styles = ['b+', 'rx', 'og']
+util_errors_funcs = {}
+for key in util_errors:
+    util_errors_funcs[key] = interp1d(parsed_dm['w'], util_errors[key], kind='cubic')
+
+price_errors_func = interp1d(parsed_dm['w'], price_errors, kind='cubic')
+
+fig = plt.figure()
+ax  = fig.add_subplot(111)
+styles = ['b+', '-b', 'rx', '-r', 'og', '-g']
 style  = its.cycle(styles)
 keys = sorted([k for k in util_errors])
+xs = np.linspace(parsed_dm['w'][0], parsed_dm['w'][-1], 100)
 for key in keys:
-    plt.plot(parsed_dm['w'], util_errors[key], next(style))
+    ax.plot(parsed_dm['w'], util_errors[key], next(style), label=key)
+    ax.plot(xs, util_errors_funcs[key](xs), next(style), label=key)
 plt.grid()
 plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Percentage relative error, $\eta_{\Pi_i}\cdot 100\%$")
-legend = ["Bidder %d" % i for i in range(1, len(keys) + 1)]
-plt.legend(legend, loc="lower right")
+labels     = ["Bidder %d" % i for i in range(1, len(keys) + 1)]
+handles, _ = ax.get_legend_handles_labels()
+ax.legend(handles[::2], labels, loc="lower right")
 plt.savefig(folder + '/error_utilities.pdf')
 
 plt.figure()
 plt.plot(parsed_dm['w'], price_errors, '+b')
+plt.plot(xs, price_errors_func(xs), '-b')
 plt.grid()
 plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Percentage relative error, $\eta_p\cdot 100\%$")
