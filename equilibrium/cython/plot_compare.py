@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
+from scipy.stats import linregress
 import os
 
 
@@ -46,12 +47,21 @@ for key in keys:
         else:
             util_errors.setdefault(key, []).append(err)
 
-util_errors_funcs = {}
+# regress
+def nonlinear_model(xs, a, b, c, d):
+    return a * np.power(xs, 3) + b * np.power(xs, 2) + c * xs + d
+
+util_errors_params = {}
 for key in util_errors:
-    util_errors_funcs[key] = interp1d(parsed_dm['w'], util_errors[key], kind='cubic')
+    params, _ = curve_fit(nonlinear_model, parsed_dm['w'], util_errors[key])
+    util_errors_params[key] = params
 
-price_errors_func = interp1d(parsed_dm['w'], price_errors, kind='cubic')
+def linear_model(xs, *params):
+    return params[0] * xs + params[1]
 
+price_params = linregress(parsed_dm['w'], price_errors)
+
+# plot
 fig = plt.figure()
 ax  = fig.add_subplot(111)
 styles = ['b+', '-b', 'rx', '-r', 'og', '-g']
@@ -60,7 +70,7 @@ keys = sorted([k for k in util_errors])
 xs = np.linspace(parsed_dm['w'][0], parsed_dm['w'][-1], 100)
 for key in keys:
     ax.plot(parsed_dm['w'], util_errors[key], next(style), label=key)
-    ax.plot(xs, util_errors_funcs[key](xs), next(style), label=key)
+    ax.plot(xs, nonlinear_model(xs, *util_errors_params[key]), next(style), label=key)
 plt.grid()
 plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Percentage relative error, $\eta_{\Pi_i}\cdot 100\%$")
@@ -71,7 +81,7 @@ plt.savefig(folder + '/error_utilities.pdf')
 
 plt.figure()
 plt.plot(parsed_dm['w'], price_errors, '+b')
-plt.plot(xs, price_errors_func(xs), '-b')
+plt.plot(xs, linear_model(xs, *price_params), '-b')
 plt.grid()
 plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Percentage relative error, $\eta_p\cdot 100\%$")
