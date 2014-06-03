@@ -56,55 +56,59 @@ def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
 
     return sampled_bids, best_responses
 
-parser = argparse.ArgumentParser(description="Estimate param for EFSM")
-parser.add_argument('w', type=float, help='Price weight')
-parser.add_argument('reps', nargs='+', type=float, help='Reputation array')
-args = parser.parse_args()
+def estimate_param(w, reputatations):
+    # get number of bidders
+    n = reputations.size
 
-# parse scenario params
-w = args.w
-reputations = np.array(args.reps)
+    # estimate lower and upper extremities
+    lower_extremities = np.array([(1-w)*r for r in reputations])
+    upper_extremities = np.array([(1-w)*r + w for r in reputations])
 
-# get number of bidders
-n = reputations.size
+    # estimate upper bound on bids
+    b_upper = upper_bound_bids(lower_extremities, upper_extremities)
 
-# estimate lower and upper extremities
-lower_extremities = np.array([(1-w)*r for r in reputations])
-upper_extremities = np.array([(1-w)*r + w for r in reputations])
+    # approximate
+    param = 1e-6
 
-# estimate upper bound on bids
-b_upper = upper_bound_bids(lower_extremities, upper_extremities)
+    while True:
+        bids, costs = solve(w, reputations, param=param)
 
-# approximate
-param = 1e-6
+        # verify sufficiency
+        cdfs = []
+        for l,u in zip(lower_extremities, upper_extremities):
+          cdfs.append(stats.uniform(loc=l, scale=u-l))
 
-while True:
-    bids, costs = solve(w, reputations, param=param)
+        step = len(bids) // 35
+        sampled_bids, best_responses = verify_sufficiency(costs, bids, b_upper, cdfs, step=step)
 
-    # verify sufficiency
-    cdfs = []
-    for l,u in zip(lower_extremities, upper_extremities):
-      cdfs.append(stats.uniform(loc=l, scale=u-l))
+        # calculate average error
+        errors = []
+        m = sampled_bids.shape[1]
+        for i in range(n):
+            error = 0
+            for b,br in zip(sampled_bids[i], best_responses[i]):
+                error += abs(b-br)
 
-    step = len(bids) // 35
-    sampled_bids, best_responses = verify_sufficiency(costs, bids, b_upper, cdfs, step=step)
+            errors.append(error / m)
 
-    # calculate average error
-    errors = []
-    m = sampled_bids.shape[1]
-    for i in range(n):
-        error = 0
-        for b,br in zip(sampled_bids[i], best_responses[i]):
-            error += abs(b-br)
+        # Check if average is low for each bidder
+        if all([e < 1e-2 for e in errors]) or param >= 0.01:
+            break
 
-        errors.append(error / m)
+        # Update param
+        param += 1e-6
 
-    # Check if average is low for each bidder
-    if all([e < 1e-2 for e in errors]) or param >= 0.01:
-        break
+    return param
 
-    # Update param
-    param += 1e-6
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Estimate param for EFSM")
+    parser.add_argument('w', type=float, help='Price weight')
+    parser.add_argument('reps', nargs='+', type=float, help='Reputation array')
+    args = parser.parse_args()
 
-print(param)
+    # parse scenario params
+    w = args.w
+    reputations = np.array(args.reps)
+
+    print(estimate_param(w, reputations))
 
