@@ -7,17 +7,15 @@ import scipy.stats as ss
 
 import bajari.fsm.main as bajari
 import util.util as util
-
+from estimateparam import estimate_param
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description="Compare auction models")
 parser.add_argument('--w', type=float, help='price weight')
 parser.add_argument('--reps', action='append', type=float, help='reputation array')
-parser.add_argument('--param', type=float, help='param')
 args = parser.parse_args()
 w = args.w
 reputations = np.array(args.reps)
-param = args.param
 
 # load appropriate version of FSM method
 n = reputations.size
@@ -25,6 +23,8 @@ if n == 2:
     import dm.fsm.main as dm
 else:
     import dm.efsm.main as dm
+    # estimate param
+    param = estimate_param(w, reputations)
 
 # estimate lower and upper extremities
 lowers = np.empty(n, dtype=np.float)

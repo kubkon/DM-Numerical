@@ -56,7 +56,7 @@ def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
 
     return sampled_bids, best_responses
 
-def estimate_param(w, reputatations):
+def estimate_param(w, reputations):
     # get number of bidders
     n = reputations.size
 
