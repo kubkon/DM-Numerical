@@ -14,7 +14,7 @@ matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description="Compare auction models -- helper script")
-parser.add_argument('reps', action='append', type=float, help='reputation array')
+parser.add_argument('reps', nargs='+', type=float, help='reputation array')
 parser.add_argument('--batch_size', dest='batch_size', default=8,
                     type=int, help='batch size for multiprocessing')
 args = parser.parse_args()
