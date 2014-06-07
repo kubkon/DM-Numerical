@@ -77,8 +77,9 @@ except OSError as e:
     print("Execution failed: ", e)
 
 # save results to files
+prefix   = '_'.join(list(map(lambda x: str(int(x*100)), reps)))
 for t in ['dm', 'cp']:
-    with open("compare_%s.csv" % t, "wt") as f:
+    with open(prefix + "_compare_%s.csv" % t, "wt") as f:
         writer = csv.writer(f)
         writer.writerow(["w", "price"] + ["bidder_{}".format(i+1) for i in range(n)])
     
