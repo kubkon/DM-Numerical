@@ -87,7 +87,7 @@ for key,i in zip(sorted(keys), range(1, len(keys)+1)):
     box.get_children().insert(0, txt)
     box.set_figure(box.figure)
     plt.xlim([0.5, 1.0])
-    plt.savefig('error_utilities_%s.pdf' % key)
+    plt.savefig(join(directory, 'error_utilities_%s.pdf' % key))
     plt.close()
 
 fig = plt.figure()
@@ -104,6 +104,6 @@ box = l._legend_box
 box.get_children().insert(0, txt)
 box.set_figure(box.figure)
 plt.xlim([0.5, 1.0])
-plt.savefig('error_prices.pdf')
+plt.savefig(join(directory, 'error_prices.pdf'))
 plt.close()
 

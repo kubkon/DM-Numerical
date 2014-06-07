@@ -29,7 +29,7 @@ n = len(reps)
 cmds = []
 
 for w in ws:
-    cmd =  "python compare.py --w=%r " % w
+    cmd =  "python compare.py --w=%.12f " % w
     cmd += " ".join(["--reps=%r" % r for r in reps])
     cmds.append(cmd)
 
