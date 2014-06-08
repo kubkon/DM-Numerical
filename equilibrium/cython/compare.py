@@ -54,6 +54,23 @@ bajari_bids, bajari_costs = bajari.solve(support, bajari_params)
 dm_costs, dm_bids = util.ensure_monotonicity(dm_costs, dm_bids)
 bajari_costs, bajari_bids = util.ensure_monotonicity(bajari_costs, bajari_bids)
 
+#------------------------------------------------------
+# precondition solutions: remove endpoints where fails
+# Lipschitz condition
+for c in dm_costs:
+    diffs = list(map(lambda x,y: abs(x-y), c, dm_bids))
+    for i in np.arange(len(diffs)):
+        if diffs[i] <= 1e-5:
+            index = i
+            break
+
+try:
+    dm_costs = np.array([c[:index] for c in dm_costs])
+    dm_bids  = dm_bids[:index]
+except NameError:
+    pass
+#------------------------------------------------------
+
 # interpolate bidding functions and their inverses
 dm_bid_funcs     = []
 bajari_bid_funcs = []

@@ -29,7 +29,7 @@ n = len(reps)
 cmds = []
 
 for w in ws:
-    cmd =  "python compare.py --w=%.12f " % w
+    cmd =  "python compare.py --w=%r " % w
     cmd += " ".join(["--reps=%r" % r for r in reps])
     cmds.append(cmd)
 
@@ -84,5 +84,6 @@ for t in ['dm', 'cp']:
         writer.writerow(["w", "price"] + ["bidder_{}".format(i+1) for i in range(n)])
     
         for w,r in zip(ws, results):
-            writer.writerow([w, r['prices'][t]] + r['utilities'][t])
+            values = [w, r['prices'][t]] + r['utilities'][t]
+            writer.writerow(list(map(lambda x: '%r' % x, values)))
 
