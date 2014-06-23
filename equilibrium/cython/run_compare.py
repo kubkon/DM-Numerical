@@ -4,6 +4,7 @@ import csv
 from itertools import cycle, repeat
 import numpy as np
 from numpy.random import choice
+from scipy.stats import t
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import rc
@@ -82,7 +83,34 @@ for w in ws:
     except OSError as e:
         print("Execution failed: ", e)
 
+# calculate averages and confidence intervals
 print(results)
+
+for w in ws:
+    prices_errors = []
+    utilities_errors = []
+    for r in results[w]:
+        prices = r['prices']
+        prices_errors.append(abs((prices['dm'] - prices['cp']) / prices['dm']) * 100)
+
+        utilities = r['utilities']
+        error = list(map(lambda x,y: abs((x - y) / x) * 100, utilities['dm'], utilities['cp']))
+        utilities_errors.append(error)
+
+    prices_mean = np.mean(prices_errors)
+    prices_std  = np.sqrt(np.var(prices_errors))
+    alpha       = 0.05
+    n           = len(prices_errors)
+    prices_ci   = t.ppf(1 - alpha/2, n-1) * prices_std / np.sqrt(n)
+
+    utilities_means = []
+    utilities_cis = []
+    for x_y in zip(*utilities_errors):
+        mean = np.mean(x_y)
+        std  = np.sqrt(np.var(x_y))
+        ci   = t.ppf(1 - alpha/2, n-1) * std / np.sqrt(n)
+        utilities_means.append(mean)
+        utilities_cis.append(ci)
 
 # # save results to files
 # prefix   = '_'.join(list(map(lambda x: str(int(x*100)), reps)))
