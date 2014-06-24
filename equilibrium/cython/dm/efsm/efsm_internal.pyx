@@ -35,6 +35,7 @@ cdef int f(int n, const gsl_vector * uppers, double t, double * y, double * f) n
         r = t - y[i]
 
         if r == 0:
+            free(rs)
             return GSL_EZERODIV
 
         rs[i] = 1 / r
@@ -95,8 +96,6 @@ cdef int solve_ode(gsl_vector_const_view v_uppers,
         &sys, gsl_odeiv2_step_rkf45,
         hstart, epsAbs, epsRel)
 
-    gsl_odeiv2_driver_set_nmax(d, 1000000)
-
     # populate y_i with initial conditions
     cdef double *y = <double *> calloc(n, sizeof(double))
     if y is NULL:
@@ -121,6 +120,8 @@ cdef int solve_ode(gsl_vector_const_view v_uppers,
         status = gsl_odeiv2_driver_apply(d, &t, ti, y)
 
         if status != GSL_SUCCESS:
+            free(y)
+            gsl_odeiv2_driver_free(d)
             return status
 
         # add result to the solution matrix
@@ -221,17 +222,6 @@ def p_estimate_k(b, lowers):
 
     return k
 
-def assert_min_index(index, max_index):
-    if index == max_index:
-        msg = "Error, index of truncation exceeds permissible range\n"
-        raise Exception(msg)
-
-def assert_ode_solution(status):
-    if status != GSL_SUCCESS:
-        # if unsuccessful, raise an error
-        msg = "Error, return value=%d\n" % status
-        raise Exception(msg)
-
 def solve(lowers, uppers, bids):
     """Returns matrix of costs that establish the solution (and equilibrium)
     to the system of ODEs (1.26) in the thesis.
@@ -271,7 +261,14 @@ def solve(lowers, uppers, bids):
                            gsl_vector_const_subvector(c_bids, index, m-index),
                            gsl_matrix_submatrix(c_costs, index, 0, m-index, k))
         
-        assert_ode_solution(status)
+        if status != GSL_SUCCESS:
+            # if unsuccessful, raise an error
+            msg = "Error, return value=%d\n" % status
+            gsl_vector_free(c_uppers)
+            gsl_vector_free(initial)
+            gsl_vector_free(c_bids)
+            gsl_matrix_free(c_costs)
+            raise Exception(msg)
 
         if k == n:
             break
@@ -285,7 +282,13 @@ def solve(lowers, uppers, bids):
         v = gsl_matrix_column(c_costs, k)
         index = min_index(&v.vector, lowers[k])
 
-        assert_min_index(index, m-1)
+        if index == m-1:
+            msg = "Error, index of truncation exceeds permissible range\n"
+            gsl_vector_free(c_uppers)
+            gsl_vector_free(initial)
+            gsl_vector_free(c_bids)
+            gsl_matrix_free(c_costs)
+            raise Exception(msg)
 
         # set new initial conditions
         for j from 0 <= j < n:

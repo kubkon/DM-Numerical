@@ -65,7 +65,6 @@ def solve(w, reputations, granularity=10000, param=1e-6):
 
     try:
         #print("Param=%f" % param)
-        print(param)
 
         return bids, costs
 
