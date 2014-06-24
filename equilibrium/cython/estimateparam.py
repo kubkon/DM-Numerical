@@ -71,6 +71,7 @@ def estimate_param(w, reputations):
     param = 1e-6
 
     while True:
+        print(param)
         bids, costs = solve(w, reputations, param=param)
 
         # verify sufficiency

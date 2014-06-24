@@ -95,6 +95,8 @@ cdef int solve_ode(gsl_vector_const_view v_uppers,
         &sys, gsl_odeiv2_step_rkf45,
         hstart, epsAbs, epsRel)
 
+    gsl_odeiv2_driver_set_nmax(d, 1000000)
+
     # populate y_i with initial conditions
     cdef double *y = <double *> calloc(n, sizeof(double))
     if y is NULL:
