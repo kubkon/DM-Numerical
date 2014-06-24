@@ -29,8 +29,14 @@ batch_size = args.batch_size
 
 # prepare the scenario
 ws = np.linspace(0.55, 0.99, n_ws)
-rands = choice(np.linspace(0.01, 0.99, 10000), n_bidders*n_reps, replace=False)
-reputations = [sorted(rands[i:i+n_bidders].tolist()) for i in range(0, len(rands), n_bidders)]
+rs = np.linspace(0.01, 0.99, 10000)
+reputations = []
+for i in range(n_reps):
+    while True:
+        rand = sorted(choice(rs, n_bidders, replace=False).tolist())
+        if rand not in reputations:
+            break
+    reputations.append(rand)
 
 results = {}
 for w in ws:
