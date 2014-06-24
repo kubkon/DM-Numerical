@@ -33,6 +33,9 @@ def solve(w, reputations, granularity=10000, param=1e-6):
     # run the FSM algorithm until the estimate of the lower bound
     # on bids is found
     while high - low > epsilon:
+        if param >= 0.01:
+            break
+        
         guess = 0.5 * (low + high)
         bids = np.linspace(guess, b_upper-param, num=num, endpoint=False)
 
