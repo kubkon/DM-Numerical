@@ -5,14 +5,10 @@ from itertools import cycle, repeat
 import numpy as np
 from numpy.random import choice
 from scipy.stats import t
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib import rc
-import subprocess as sub
+from multiprocessing import Process, Queue
 
-rc('font',**{'family':'sans-serif','sans-serif':['Gill Sans']})
-rc('text', usetex=True)
-matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
+from compare import compare
+
 
 # parse command line arguments
 parser = argparse.ArgumentParser(description="Compare auction models -- helper script")
@@ -38,56 +34,30 @@ for i in range(n_reps):
             break
     reputations.append(rand)
 
-results = {}
+# prepare function params
+def worker(input, output):
+    for args in iter(input.get, 'STOP'):
+        output.put(compare(*args))
+
+task_queue = Queue()
+counter = 0
 for w in ws:
-    # prepare the subprocess commands
-    cmds = []
+    for r in reputations:
+        task_queue.put((w, r))
+        counter += 1
 
-    for reps in reputations:
-        cmd =  "python compare.py --w=%r " % w
-        cmd += " ".join(["--reps=%r" % r for r in reps])
-        cmds.append(cmd)
+result_queue = Queue()
+for i in range(batch_size):
+    Process(target=worker, args=(task_queue, result_queue)).start()
 
-    # run comparisons
-    try:
-        # one process at a time
-        if batch_size == 1:
-            for cmd in cmds:
-                output = ast.literal_eval(sub.check_output(cmd, shell=True)
-                            .decode('utf-8').rstrip())
-                results.setdefault(w, []).append(output)
-        # in batches
-        else:
-            # split into batches
-            repetitions = len(cmds)
-            quotient = repetitions // batch_size
-            remainder = repetitions % batch_size
+results = {}
+for i in range(counter):
+    dct = result_queue.get()
+    for w in dct:
+        results.setdefault(w, []).append(dct[w])
 
-            # run the simulations in parallel as subprocesses
-            num_proc = batch_size if batch_size <= repetitions else remainder
-            
-            procs = []
-            for i in range(num_proc):
-                procs.append(sub.Popen(cmds[i], shell=True, stdout=sub.PIPE))
-
-            while True:
-                for p in procs:
-                    output = ast.literal_eval(p.communicate()[0]
-                                .decode('utf-8').rstrip())
-                    results.setdefault(w, []).append(output)
-
-                if len(results[w]) == repetitions:
-                    break
-
-                procs = []
-                temp_num = batch_size if num_proc + batch_size <= repetitions else remainder
-
-                for i in range(num_proc, num_proc + temp_num):
-                    procs.append(sub.Popen(cmds[i], shell=True, stdout=sub.PIPE))
-                num_proc += temp_num
-
-    except OSError as e:
-        print("Execution failed: ", e)
+for i in range(counter):
+    task_queue.put('STOP')
 
 # calculate averages and confidence intervals
 with open(str(n_bidders) + '_compare.csv', 'wt') as f:
