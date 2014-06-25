@@ -6,6 +6,7 @@ import numpy as np
 from numpy.random import choice
 from scipy.stats import t
 from multiprocessing import Process, Queue
+import sys
 
 from compare import compare
 
@@ -50,13 +51,22 @@ result_queue = Queue()
 for i in range(batch_size):
     Process(target=worker, args=(task_queue, result_queue)).start()
 
+sys.stdout.write("Completed  0%")
+sys.stdout.flush()
+
 results = {}
 for i in range(counter):
     dct = result_queue.get()
     for w in dct:
         results.setdefault(w, []).append(dct[w])
+    percent = int((i+1) / counter * 100)
+    if percent / 10 > 1.0:
+        sys.stdout.write("\b\b\b%d%%" % percent)
+    else:
+        sys.stdout.write("\b\b%d%%" % percent)
+    sys.stdout.flush()
 
-for i in range(counter):
+for i in range(batch_size):
     task_queue.put('STOP')
 
 # calculate averages and confidence intervals
