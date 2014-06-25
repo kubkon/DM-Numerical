@@ -71,7 +71,11 @@ def estimate_param(w, reputations):
     param = 1e-6
 
     while True:
-        bids, costs = solve(w, reputations, param=param)
+        try:
+            bids, costs = solve(w, reputations, param=param)
+        except Exception:
+            param += 1e-6
+            continue
 
         # verify sufficiency
         cdfs = []
