@@ -6,6 +6,7 @@ import numpy as np
 from numpy.random import choice
 from scipy.stats import t
 from multiprocessing import Process, Queue
+from os.path import isfile
 import sys
 
 from compare import compare
@@ -14,18 +15,26 @@ from compare import compare
 # parse command line arguments
 parser = argparse.ArgumentParser(description="Compare auction models -- helper script")
 parser.add_argument('n_bidders', type=int, help='number of bidders')
-parser.add_argument('n_ws', type=int, help='number of price weight values')
 parser.add_argument('n_reps', type=int, help='number of reputation values to draw per price weight')
 parser.add_argument('--batch_size', dest='batch_size', default=8,
                     type=int, help='batch size for multiprocessing')
+parser.add_argument('--n_ws', dest='n_ws', default=10,
+                    type=int, help='number of price weight values')
+parser.add_argument('--w', dest='w', default=None, type=float,
+                    help='price weight value')
 args = parser.parse_args()
 n_bidders = args.n_bidders
-n_ws = args.n_ws
 n_reps = args.n_reps
 batch_size = args.batch_size
+n_ws = args.n_ws
+w = args.w
 
 # prepare the scenario
-ws = np.linspace(0.55, 0.99, n_ws)
+if w:
+    ws = [w]
+else:
+    ws = np.linspace(0.55, 0.99, n_ws)
+
 rs = np.linspace(0.01, 0.99, 10000)
 reputations = []
 for i in range(n_reps):
@@ -70,12 +79,20 @@ for i in range(batch_size):
     task_queue.put('STOP')
 
 # calculate averages and confidence intervals
-with open(str(n_bidders) + '_compare.csv', 'wt') as f:
-    writer = csv.writer(f)
-    headers = ['w', 'price mean', 'price ci']
-    for b in ['bidder_{}'.format(i+1) for i in range(n_bidders)]:
-        headers.extend([b + ' mean', b + ' ci'])
-    writer.writerow(headers)
+filename = str(n_bidders) + '_compare.csv'
+has_header = False
+if isfile(filename):
+    has_header = True
+
+headers = ['w', 'price mean', 'price ci']
+for b in ['bidder_{}'.format(i+1) for i in range(n_bidders)]:
+    headers.extend([b + ' mean', b + ' ci'])
+
+with open(filename, 'at') as f:
+    writer = csv.DictWriter(f, headers)
+    # write header if does not exist
+    if not has_header:
+        writer.writeheader()
 
     for w in ws:
         prices_errors = []
@@ -102,6 +119,7 @@ with open(str(n_bidders) + '_compare.csv', 'wt') as f:
             utilities.extend([mean, ci])
 
         # save results to files
-        values = [w, prices_mean, prices_ci] + utilities 
-        writer.writerow(list(map(lambda x: '%r' % x, values)))
+        values = [w, prices_mean, prices_ci] + utilities
+        values = list(map(lambda x: '%r' % x, values))
+        writer.writerow(dict(zip(headers, values)))
 

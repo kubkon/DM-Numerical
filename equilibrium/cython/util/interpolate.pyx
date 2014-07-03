@@ -42,8 +42,11 @@ cdef class CubicSpline:
         free(self.c_xs)
 
     def evaluate(self, x):
-        if x < self.min_x or x > self.max_x:
-            raise Exception("Exceeded interpolation range: (%r,%r,%r)" % (self.min_x, x, self.max_x))
+        if x < self.min_x:
+            x = self.min_x
+
+        if x > self.max_x:
+            x = self.max_x
 
         return gsl_spline_eval(self.spline, x, self.acc)
 
