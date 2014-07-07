@@ -42,7 +42,7 @@ def solve(w, reputations, granularity=10000, param=1e-6):
             costs = efsm_internal.solve(lowers, uppers, bids).T
 
         except Exception:
-            if param >= 0.001:
+            if param >= 1e-3:
                 raise Exception("Exceeded maximum iteration limit.")
             param += 1e-6
             continue
