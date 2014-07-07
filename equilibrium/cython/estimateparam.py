@@ -96,8 +96,11 @@ def estimate_param(w, reputations):
             errors.append(error / m)
 
         # Check if average is low for each bidder
-        if all([e < 1e-2 for e in errors]) or param > 1e-4:
+        if all([e < 1e-2 for e in errors]):
             break
+
+        if param > 1e-4:
+            return None
 
         # Update param
         param += 1e-6
