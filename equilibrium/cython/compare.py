@@ -24,6 +24,8 @@ def compare(w, reputations):
         import dm.efsm.main as dm
         # estimate param
         param = estimate_param(w, reputations)
+        if not param:
+            return None
 
     # estimate lower and upper extremities
     lowers = np.empty(n, dtype=np.float)

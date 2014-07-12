@@ -66,8 +66,10 @@ sys.stdout.flush()
 results = {}
 for i in range(counter):
     dct = result_queue.get()
-    for w in dct:
-        results.setdefault(w, []).append(dct[w])
+    if dct:
+        for w in dct:
+            results.setdefault(w, []).append(dct[w])
+
     percent = int((i+1) / counter * 100)
     if percent / 10 > 1.0:
         sys.stdout.write("\b\b\b%d%%" % percent)
