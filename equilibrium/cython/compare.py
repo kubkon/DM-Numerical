@@ -11,11 +11,12 @@ from estimateparam import estimate_param
 
 
 def compare(w, reputations):
-    try:
-        n = reputations.size
-    except AttributeError:
-        reputations = np.array(reputations)
-        n = reputations.size
+    reputations = list(reputations)
+    sort = sorted(reputations)
+    bidders = [reputations.index(i) for i in sort]
+
+    reputations = np.array(sort)
+    n = reputations.size
 
     # load appropriate version of FSM method
     if n == 2:
@@ -138,6 +139,9 @@ def compare(w, reputations):
     for costs in zip(*sampled_costs):
         bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
         bajari_prices.append(min(bids))
+
+    dm_utils = [dm_utils[i] for i in bidders]
+    bajari_utils = [bajari_utils[i] for i in bidders]
 
     results = {w:
                 {'utilities':

@@ -39,7 +39,7 @@ rs = np.linspace(0.01, 0.99, 10000)
 reputations = []
 for i in range(n_reps):
     while True:
-        rand = sorted(choice(rs, n_bidders, replace=False).tolist())
+        rand = choice(rs, n_bidders, replace=False).tolist()
         if rand not in reputations:
             break
     reputations.append(rand)
