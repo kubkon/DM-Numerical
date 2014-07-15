@@ -35,7 +35,7 @@ with open(filename, 'rt') as f:
 ws = parsed['w']
 fig = plt.figure()
 ax  = fig.add_subplot(111)
-styles = ['o', 'x', '+', 'v']
+styles = ['o', 'x', '+', 'v', '^']
 style = its.cycle(styles)
 ax.errorbar(ws, parsed['price mean'], yerr=parsed['price ci'], fmt=next(style))
 keys = sorted([key for key in parsed if 'bidder' in key])
@@ -46,6 +46,6 @@ plt.grid()
 plt.xlim([0.5, 1.0])
 plt.xlabel(r"Price weight, $w$")
 plt.ylabel(r"Percentage relative error")
-plt.legend(['Price'] + ['Bidder %d' % i for i in range(1,len(keys)//2 + 1)], loc='lower right')
+plt.legend(['Price'] + ['Bidder %d' % i for i in range(1,len(keys)//2 + 1)], loc='upper right')
 plt.savefig('.'.join([filename.split('.')[0], 'pdf']))
 
