@@ -97,7 +97,7 @@ def compare(w, reputations):
     common_costs = []
     for i in np.arange(n):
         # common costs
-        costs = np.linspace(dm_costs[i][0], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
+        costs = np.linspace(lowers[i], min(dm_costs[i][-1], bajari_costs[i][-1]), 1000)
         common_costs.append(costs)
 
         # derive expected utility functions
