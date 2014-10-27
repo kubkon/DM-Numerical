@@ -11,6 +11,12 @@ from estimateparam import estimate_param
 
 
 def compare(w, reputations):
+    results = {w: {
+        'reputations': reputations,
+        'utilities': None,
+        'prices': None
+    }}
+
     try:
         n = reputations.size
     except AttributeError:
@@ -25,7 +31,7 @@ def compare(w, reputations):
         # estimate param
         param = estimate_param(w, reputations)
         if not param:
-            return None
+            return results
 
     # estimate lower and upper extremities
     lowers = np.empty(n, dtype=np.float)
@@ -139,13 +145,8 @@ def compare(w, reputations):
         bids = [bajari_bid_funcs[i](costs[i]) for i in np.arange(n)]
         bajari_prices.append(min(bids))
 
-    results = {w:
-                {'utilities':
-                    {'dm': dm_utils,
-                     'cp': bajari_utils},
-                 'prices':
-                    {'dm': np.mean(dm_prices),
-                     'cp': np.mean(bajari_prices)}}}
+    results[w]['utilities'] = {'dm': dm_utils, 'cp': bajari_utils}
+    results[w]['prices'] = {'dm': np.mean(dm_prices), 'cp': np.mean(bajari_prices)}
 
     return results
 

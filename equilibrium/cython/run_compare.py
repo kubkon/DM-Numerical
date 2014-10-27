@@ -36,13 +36,16 @@ else:
     ws = np.linspace(0.55, 0.99, n_ws)
 
 rs = np.linspace(0.01, 0.99, 10000)
-reputations = []
+
+reps = []
 for i in range(n_reps):
     while True:
         rand = sorted(choice(rs, n_bidders, replace=False).tolist())
-        if rand not in reputations:
+        if rand not in reps:
             break
-    reputations.append(rand)
+    reps.append(rand)
+
+reputations = {w: reps for w in ws}
 
 # prepare function params
 def worker(input, output):
@@ -51,8 +54,8 @@ def worker(input, output):
 
 task_queue = Queue()
 counter = 0
-for w in ws:
-    for r in reputations:
+for w in reputations:
+    for r in reputations[w]:
         task_queue.put((w, r))
         counter += 1
 
@@ -64,13 +67,27 @@ sys.stdout.write("Completed  0%")
 sys.stdout.flush()
 
 results = {}
-for i in range(counter):
+i = 0
+while i < counter:
     dct = result_queue.get()
-    if dct:
-        for w in dct:
-            results.setdefault(w, []).append(dct[w])
+    w = list(dct.keys())[0]
+    print(w)
+    if dct[w]['utilities'] is None or dct[w]['prices'] is None:
+        while True:
+            reps = sorted(choice(rs, n_bidders, replace=False).tolist())
+            if reps not in reputations[w]:
+                break
+        reputations[w].append(reps)
+        task_queue.put((w, reps))
+        continue
+    else:
+        results.setdefault(w, []).append({
+            'utilities': dct[w]['utilities'],
+            'prices': dct[w]['prices']
+        })
+        i += 1
 
-    percent = int((i+1) / counter * 100)
+    percent = int(i / counter * 100)
     if percent / 10 > 1.0:
         sys.stdout.write("\b\b\b%d%%" % percent)
     else:
@@ -90,13 +107,13 @@ headers = ['w', 'price mean', 'price ci']
 for b in ['bidder_{}'.format(i+1) for i in range(n_bidders)]:
     headers.extend([b + ' mean', b + ' ci'])
 
-with open(filename, 'at') as f:
+with open(filename, 'wt') as f:
     writer = csv.DictWriter(f, headers)
     # write header if does not exist
     if not has_header:
         writer.writeheader()
 
-    for w in ws:
+    for w in sorted(results.keys()):
         prices_errors = []
         utilities_errors = []
         for r in results[w]:
