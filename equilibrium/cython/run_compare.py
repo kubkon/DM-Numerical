@@ -71,7 +71,6 @@ i = 0
 while i < counter:
     dct = result_queue.get()
     w = list(dct.keys())[0]
-    print(w)
     if dct[w]['utilities'] is None or dct[w]['prices'] is None:
         while True:
             reps = sorted(choice(rs, n_bidders, replace=False).tolist())
