@@ -8,6 +8,7 @@ from scipy.stats import t
 from multiprocessing import Process, Queue
 from os.path import isfile
 import sys
+import time
 
 from compare import compare
 
@@ -28,6 +29,8 @@ n_reps = args.n_reps
 batch_size = args.batch_size
 n_ws = args.n_ws
 w = args.w
+
+start_time = time.time()
 
 # prepare the scenario
 if w:
@@ -140,4 +143,7 @@ with open(filename, 'wt') as f:
         values = [w, prices_mean, prices_ci] + utilities
         values = list(map(lambda x: '%r' % x, values))
         writer.writerow(dict(zip(headers, values)))
+
+end_time = time.time()
+print("The comparison took {} hours to complete.".format((end_time - start_time) / 3600))
 
