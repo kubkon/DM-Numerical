@@ -11,7 +11,7 @@ matplotlib.rcParams.update({'font.size': 14, 'legend.fontsize': 14})
 
 # empirical simulation time of run_compare.py script
 xs = [2,3,4,5]
-ys = [1.5577768472168818, 25.55814958737956, 76.21417879720529, 200]
+ys = [1.5577768472168818, 25.55814958737956, 76.21417879720529, 271.95091264373724]
 
 # fit polynomial
 cs = np.polyfit(xs, ys, 2)
