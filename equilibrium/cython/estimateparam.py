@@ -6,9 +6,8 @@ import scipy.stats as stats
 
 from dm.common import upper_bound_bids
 from dm.efsm.main import solve
-from util.util import verify_sufficiency
 
-def verify_sufficiency(costs, bids, b_upper, cdfs, step=100):
+def best_responses(costs, bids, b_upper, cdfs, step=100):
     # Infer number of bidders
     n = costs.shape[0]
     # Sample bidding space
@@ -86,7 +85,7 @@ def estimate_param(w, reputations):
           cdfs.append(stats.uniform(loc=l, scale=u-l))
 
         step = len(bids) // 35
-        sampled_bids, best_responses = verify_sufficiency(costs, bids, b_upper, cdfs, step=step)
+        sampled_bids, best_responses = best_responses(costs, bids, b_upper, cdfs, step=step)
 
         # calculate average error
         errors = []
